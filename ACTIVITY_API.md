@@ -10,7 +10,8 @@ ChudPresence extension.
 ```text
 activities/<activity-id>/
 ├── metadata.json
-└── activity.js
+├── activity.js
+└── icon.png (optional; declare as "icon": "icon.png")
 ```
 
 Metadata requires `id`, `name`, `description`, semantic `version`,

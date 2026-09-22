@@ -26,8 +26,15 @@
           "metadata": { "type": "string" },
           "icon": { "type": "string" },
           "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-          "metadataSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
-        }
+          "metadataSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "iconSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        },
+        "allOf": [
+          {
+            "if": { "required": ["icon"] },
+            "then": { "required": ["iconSha256"] }
+          }
+        ]
       }
     }
   }

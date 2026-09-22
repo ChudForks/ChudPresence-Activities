@@ -113,11 +113,14 @@ async function readPackage(directoryName) {
     sha256: digest(source),
     metadataSha256: digest(metadataText),
   };
-  try {
-    await fs.access(path.join(directory, 'icon.png'));
+  if (metadata.icon === 'icon.png') {
+    const icon = await fs.readFile(path.join(directory, 'icon.png'));
+    const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+    if (icon.length > 256 * 1024 || !icon.subarray(0, 8).equals(signature)) {
+      throw new Error(`${directoryName}: icon.png must be a PNG up to 256 KB.`);
+    }
     entry.icon = `activities/${directoryName}/icon.png`;
-  } catch {
-    // An icon is optional.
+    entry.iconSha256 = digest(icon);
   }
   return entry;
 }
