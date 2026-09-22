@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T21:35:08.177Z",
+  "activities": [
+    {
+      "id": "youtube-music",
+      "name": "YouTube Music",
+      "description": "Show the song, artist, and playback progress from YouTube Music.",
+      "version": "1.0.0",
+      "apiVersion": 1,
+      "category": "music",
+      "matches": [
+        "https://music.youtube.com/*"
+      ],
+      "entry": "activities/youtube-music/activity.js",
+      "metadata": "activities/youtube-music/metadata.json",
+      "sha256": "b725fc3a105d8bc9641fd0a6ec31a2ef566174d4fce6f896f93f86a51a08affd",
+      "metadataSha256": "dfe3a1f6e70b84f1d4359d66148a526a7588755cd10b84b7159e29bea171acda"
+    }
+  ]
+}

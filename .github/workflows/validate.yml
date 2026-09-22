@@ -1,0 +1,20 @@
+name: Validate Activities
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check metadata and generated hashes
+        run: node tools/build-catalog.mjs --check
+      - name: Check Activity JavaScript syntax
+        shell: bash
+        run: find activities -name activity.js -print0 | xargs -0 -n 1 node --check
