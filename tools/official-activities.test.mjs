@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-async function runActivity(id, { url, title = '', metadata = null, selectors = {} }) {
+async function runActivity(id, { url, title = '', metadata = null, selectors = {}, selectorLookup = null }) {
   const source = await fs.readFile(path.join(root, 'activities', id, 'activity.js'), 'utf8');
   const reports = [];
   const cleanups = [];
@@ -20,7 +20,7 @@ async function runActivity(id, { url, title = '', metadata = null, selectors = {
   const document = {
     title,
     documentElement: {},
-    querySelector(selector) { return selectors[selector] || null; },
+    querySelector(selector) { return selectors[selector] || selectorLookup?.(selector) || null; },
     querySelectorAll(selector) { return selector === 'script[type="application/ld+json"]' && metadata
       ? [{ textContent: JSON.stringify(metadata) }] : []; },
     addEventListener() {},
@@ -73,6 +73,20 @@ test('Crunchyroll package reports an episode and reacts to V1 settings changes',
   assert.equal(activity.reports.at(-1).display.details, 'Series');
   activity.navigate('https://www.crunchyroll.com/series/ABC123');
   assert.equal(activity.reports.at(-1), null);
+  activity.cleanup();
+});
+
+test('Crunchyroll does not mistake header and loading test IDs for an advertisement', async () => {
+  const activity = await runActivity('crunchyroll', {
+    url: 'https://www.crunchyroll.com/watch/ABC123/episode-one',
+    title: 'Episode One - Watch on Crunchyroll',
+    metadata: { '@type': 'TVEpisode', name: 'Episode One', partOfSeries: { name: 'Series' } },
+    selectorLookup(selector) {
+      // A site-wide header or loading marker matched the old substring selector.
+      return selector.includes('[data-testid*="ad" i]') ? { textContent: 'Header' } : null;
+    },
+  });
+  assert.equal(activity.reports.at(-1).visibility, 'normal');
   activity.cleanup();
 });
 

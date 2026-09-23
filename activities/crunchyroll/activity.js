@@ -196,7 +196,8 @@ function isPlaying(video, mediaSnapshot) {
 function isAd(video, episodeDuration, duration) {
   if (document.querySelector([
     '#vilosAdsContainer', '.vilos-ad', '[class*="ads-overlay"]', '[class*="ad-overlay"]',
-    '[class*="preroll"]', '[data-testid*="ad" i]', '[aria-label*="Advertisement" i]',
+    '[class*="preroll"]', '[data-testid="ad" i]', '[data-testid^="ad-" i]',
+    '[data-testid$="-ad" i]', '[data-testid*="advert" i]', '[aria-label*="Advertisement" i]',
     '[aria-label*="Skip Ad" i]',
   ].join(', '))) return true;
   const videoDuration = Number.isFinite(video?.duration) && video.duration > 0 ? video.duration : 0;
