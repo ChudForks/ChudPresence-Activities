@@ -4,32 +4,184 @@
   "title": "ChudPresence Activity API v1 Report",
   "type": "object",
   "additionalProperties": false,
-  "required": ["title"],
+  "required": [
+    "kind",
+    "media"
+  ],
   "properties": {
-    "title": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "\\S" },
-    "artist": { "type": "string", "maxLength": 256 },
-    "album": { "type": "string", "maxLength": 256 },
-    "details": { "type": "string", "maxLength": 256 },
-    "state": { "type": "string", "maxLength": 256 },
-    "artwork": { "type": "string", "format": "uri", "maxLength": 2048, "pattern": "^https://" },
-    "url": { "type": "string", "format": "uri", "maxLength": 2048, "pattern": "^https://" },
-    "playing": { "type": "boolean" },
-    "live": { "type": "boolean" },
-    "position": { "type": "number", "minimum": 0, "maximum": 31536000 },
-    "duration": { "type": "number", "minimum": 0, "maximum": 31536000 },
-    "kind": { "enum": ["video", "movie", "episode", "song", "stream", "game", "generic"] },
+    "kind": {
+      "enum": [
+        "video",
+        "movie",
+        "episode",
+        "song",
+        "stream",
+        "game",
+        "generic"
+      ]
+    },
+    "media": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "\\S"
+        },
+        "subtitle": {
+          "$ref": "#/$defs/text"
+        },
+        "artist": {
+          "$ref": "#/$defs/text"
+        },
+        "album": {
+          "$ref": "#/$defs/text"
+        },
+        "series": {
+          "$ref": "#/$defs/text"
+        },
+        "season": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "episode": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "creator": {
+          "$ref": "#/$defs/text"
+        },
+        "channel": {
+          "$ref": "#/$defs/text"
+        },
+        "category": {
+          "$ref": "#/$defs/text"
+        },
+        "game": {
+          "$ref": "#/$defs/text"
+        },
+        "playlist": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "playback": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "playing",
+            "paused",
+            "stopped"
+          ]
+        },
+        "position": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 31536000
+        },
+        "duration": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 31536000
+        },
+        "live": {
+          "type": "boolean"
+        },
+        "rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 16
+        }
+      }
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "details": {
+          "$ref": "#/$defs/text"
+        },
+        "state": {
+          "$ref": "#/$defs/text"
+        },
+        "statusDisplay": {
+          "enum": [
+            "name",
+            "details",
+            "state"
+          ]
+        }
+      }
+    },
+    "artwork": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "large": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "largeText": {
+          "$ref": "#/$defs/text"
+        },
+        "small": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "smallText": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
     "buttons": {
       "type": "array",
       "maxItems": 2,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["label", "url"],
+        "required": [
+          "label",
+          "url"
+        ],
         "properties": {
-          "label": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "\\S" },
-          "url": { "type": "string", "format": "uri", "maxLength": 2048, "pattern": "^https://" }
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "pattern": "\\S"
+          },
+          "url": {
+            "$ref": "#/$defs/httpsUrl"
+          }
         }
       }
+    },
+    "visibility": {
+      "enum": [
+        "normal",
+        "idle",
+        "private",
+        "ad"
+      ]
+    }
+  },
+  "$defs": {
+    "text": {
+      "type": "string",
+      "maxLength": 256
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "maxLength": 2048,
+      "pattern": "^https://"
     }
   }
 }

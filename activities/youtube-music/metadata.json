@@ -2,12 +2,16 @@
   "id": "youtube-music",
   "name": "YouTube Music",
   "description": "Show the song, artist, and playback progress from YouTube Music.",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "apiVersion": 1,
   "author": {
     "name": "ChudPresence"
   },
   "category": "music",
+  "defaultMediaKind": "song",
+  "aliases": ["YT Music", "YTM"],
+  "tags": ["music", "streaming"],
+  "serviceUrl": "https://music.youtube.com/",
   "matches": [
     "https://music.youtube.com/*"
   ],
@@ -15,5 +19,29 @@
   "icon": "icon.png",
   "presence": {
     "kind": "music"
-  }
+  },
+  "settings": [
+    {
+      "id": "displayMode",
+      "type": "select",
+      "label": "Secondary line",
+      "default": "artist",
+      "options": [
+        { "label": "Artist", "value": "artist" },
+        { "label": "Album", "value": "album" }
+      ]
+    },
+    {
+      "id": "showAlbum",
+      "type": "boolean",
+      "label": "Use album when selected",
+      "default": true
+    },
+    {
+      "id": "showArtwork",
+      "type": "boolean",
+      "label": "Show artwork",
+      "default": true
+    }
+  ]
 }

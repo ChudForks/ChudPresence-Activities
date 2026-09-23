@@ -1,6 +1,6 @@
-let unloading = false;
-let lastSerialized = '';
+let lastSerialized = null;
 let lastSentAt = 0;
+let activitySettings = { showAlbum: true, showArtwork: true, displayMode: 'artist' };
 
 function textOf(node) {
   return (node?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -68,7 +68,8 @@ function isPlaying(video) {
 function collect() {
   if (isAd()) return null;
   const bar = document.querySelector('ytmusic-player-bar');
-  const video = document.querySelector('video');
+  const video = document.querySelector('video') || ChudPresence.media.find();
+  const mediaSnapshot = video ? ChudPresence.media.snapshot(video) : null;
   const sessionMetadata = navigator.mediaSession?.metadata;
   const metadata = sessionMetadata ? {
     title: sessionMetadata.title || '',
@@ -98,31 +99,43 @@ function collect() {
   const times = parseTimeInfo(textOf(bar?.querySelector('.time-info')));
   const position = times.duration > 0
     ? times.position
-    : Number.isFinite(video?.currentTime) ? video.currentTime : 0;
+    : Number.isFinite(mediaSnapshot?.currentTime) ? mediaSnapshot.currentTime
+      : Number.isFinite(video?.currentTime) ? video.currentTime : 0;
   const duration = times.duration > 0
     ? times.duration
-    : Number.isFinite(video?.duration) && video.duration > 0 ? video.duration : 0;
+    : Number.isFinite(mediaSnapshot?.duration) && mediaSnapshot.duration > 0 ? mediaSnapshot.duration
+      : Number.isFinite(video?.duration) && video.duration > 0 ? video.duration : 0;
+  const displayArtist = activitySettings.displayMode === 'album' && activitySettings.showAlbum
+    ? album || artist
+    : artist;
 
+  const url = videoId ? `https://music.youtube.com/watch?v=${encodeURIComponent(videoId)}` : location.href;
   return {
-    title,
-    artist,
-    album,
-    artwork,
-    url: videoId ? `https://music.youtube.com/watch?v=${encodeURIComponent(videoId)}` : location.href,
-    playing: isPlaying(video),
-    position,
-    duration,
     kind: 'song',
+    media: { title, ...(artist ? { artist } : {}), ...(album ? { album } : {}) },
+    display: { details: title, state: displayArtist || '' },
+    playback: {
+      state: mediaSnapshot?.playing || isPlaying(video) ? 'playing' : 'paused',
+      position,
+      duration,
+      live: false,
+      rate: Number.isFinite(mediaSnapshot?.playbackRate) ? mediaSnapshot.playbackRate : Number.isFinite(video?.playbackRate) ? video.playbackRate : 1,
+    },
+    artwork: activitySettings.showArtwork ? {
+      ...(artwork ? { large: artwork } : {}),
+      ...(album ? { largeText: album } : {}),
+    } : {},
+    buttons: [{ label: 'Open in YouTube Music', url }],
   };
 }
 
 function tick() {
-  if (unloading) return;
+  if (ChudPresence.lifecycle.signal.aborted) return;
   const report = collect();
   const serialized = report ? JSON.stringify(report) : '';
   const now = Date.now();
   if (serialized === lastSerialized && now - lastSentAt < 8000) return;
-  if (now - lastSentAt < 1000) return;
+  if (report && now - lastSentAt < 1000) return;
   lastSerialized = serialized;
   lastSentAt = now;
   if (report) ChudPresence.report(report);
@@ -141,25 +154,28 @@ function observePlayerBar() {
 }
 
 observePlayerBar();
-setInterval(tick, 2000);
-tick();
-document.addEventListener('yt-navigate-finish', () => {
-  lastSerialized = '';
+ChudPresence.lifecycle.interval(tick, 2000);
+ChudPresence.navigation.onChange(() => {
+  lastSerialized = null;
   observePlayerBar();
   tick();
 });
-window.addEventListener('beforeunload', () => {
-  if (unloading) return;
-  unloading = true;
-  ChudPresence.clear();
-});
-window.addEventListener('pagehide', () => {
-  if (unloading) return;
-  unloading = true;
-  ChudPresence.clear();
-});
-window.addEventListener('pageshow', () => {
-  unloading = false;
-  lastSerialized = '';
+ChudPresence.media.onChange(() => tick());
+ChudPresence.dom.observe('ytmusic-player-bar', () => {
+  observePlayerBar();
   tick();
+}, { immediate: true });
+ChudPresence.settings.onChange(({ settings }) => {
+  activitySettings = { ...activitySettings, ...settings };
+  lastSerialized = null;
+  tick();
+});
+ChudPresence.settings.getAll().then((settings) => {
+  activitySettings = { ...activitySettings, ...settings };
+  tick();
+}).catch(() => {});
+tick();
+ChudPresence.lifecycle.onCleanup(() => {
+  observer.disconnect();
+  void ChudPresence.clear().catch(() => {});
 });

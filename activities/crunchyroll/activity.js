@@ -1,6 +1,6 @@
-let unloading = false;
-let lastSerialized = '';
+let lastSerialized = null;
 let lastSentAt = 0;
+let activitySettings = { displayMode: 'episode', showArtwork: true };
 
 function textOf(el) {
   return (el?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -187,7 +187,8 @@ function findVideo() {
   );
 }
 
-function isPlaying(video) {
+function isPlaying(video, mediaSnapshot) {
+  if (mediaSnapshot?.playing) return true;
   if (video && !video.paused && !video.ended) return true;
   return navigator.mediaSession?.playbackState === 'playing';
 }
@@ -204,7 +205,8 @@ function isAd(video, episodeDuration, duration) {
 
 function collect() {
   if (!isWatchPage()) return null;
-  const video = findVideo();
+  const video = findVideo() || ChudPresence.media.find();
+  const mediaSnapshot = video ? ChudPresence.media.snapshot(video) : null;
   const ld = jsonLd();
   const parsed = parsePageTitle(pageTitle());
   const ldType = String(ld?.['@type'] || '');
@@ -251,27 +253,43 @@ function collect() {
     !movie && seriesLink && seriesLink !== url && { label: 'View series', url: seriesLink },
   ].filter(Boolean).slice(0, 2);
 
+  const isAdvertisement = isAd(video, episodeDuration, duration);
   return {
-    title: String(title).slice(0, 256),
-    artist: String(movie ? '' : series).slice(0, 256),
-    album: String(movie ? '' : episodeLabel(seasonName, season, episode)).slice(0, 256),
-    artwork,
-    url,
-    playing: isPlaying(video),
-    position: Math.max(0, Number(position) || 0),
-    duration: Math.max(0, Number(duration) || 0),
     kind: movie ? 'movie' : 'episode',
+    display: movie ? undefined : {
+      details: activitySettings.displayMode === 'series' && series ? series : (episodeTitle || series || title),
+      state: activitySettings.displayMode === 'series' && series ? (episodeTitle || title) : (series || ''),
+    },
+    media: {
+      title: String(title).slice(0, 256),
+      ...(series && !movie ? { series: String(series).slice(0, 256) } : {}),
+      ...(seasonName && !movie ? { subtitle: String(seasonName).slice(0, 256) } : {}),
+      ...(!movie && season ? { season } : {}),
+      ...(!movie && episode ? { episode } : {}),
+    },
+    playback: {
+      state: isPlaying(video, mediaSnapshot) ? 'playing' : 'paused',
+      position: Math.max(0, Number.isFinite(mediaSnapshot?.currentTime) ? mediaSnapshot.currentTime : position) || 0,
+      duration: Math.max(0, Number.isFinite(mediaSnapshot?.duration) && mediaSnapshot.duration > 0 ? mediaSnapshot.duration : duration) || 0,
+      live: false,
+      rate: Number.isFinite(mediaSnapshot?.playbackRate) ? mediaSnapshot.playbackRate : Number.isFinite(video?.playbackRate) ? video.playbackRate : 1,
+    },
+    artwork: activitySettings.showArtwork ? {
+      ...(artwork ? { large: artwork } : {}),
+      ...(title ? { largeText: String(title).slice(0, 256) } : {}),
+    } : {},
     buttons,
+    visibility: isAdvertisement ? 'ad' : 'normal',
   };
 }
 
 function tick() {
-  if (unloading) return;
+  if (ChudPresence.lifecycle.signal.aborted) return;
   const report = collect();
   const serialized = report ? JSON.stringify(report) : '';
   const now = Date.now();
   if (serialized === lastSerialized && now - lastSentAt < 8000) return;
-  if (now - lastSentAt < 1000) return;
+  if (report && now - lastSentAt < 1000) return;
   lastSerialized = serialized;
   lastSentAt = now;
   if (report) ChudPresence.report(report);
@@ -288,31 +306,33 @@ function observePlayer() {
 }
 
 observePlayer();
-setInterval(tick, 2000);
+ChudPresence.lifecycle.interval(tick, 2000);
+ChudPresence.navigation.onChange(() => {
+  lastSerialized = null;
+  observePlayer();
+  tick();
+});
+ChudPresence.media.onChange(() => tick());
+ChudPresence.dom.observe('#player-container video, video', () => tick(), { immediate: true });
+ChudPresence.settings.onChange(({ settings }) => {
+  activitySettings = { ...activitySettings, ...settings };
+  lastSerialized = null;
+  tick();
+});
+ChudPresence.settings.getAll().then((settings) => {
+  activitySettings = { ...activitySettings, ...settings };
+  tick();
+}).catch(() => {});
 tick();
 document.addEventListener('play', tick, true);
-document.addEventListener('pause', (event) => {
+function onPause(event) {
   if (event.target?.paused === false) return;
   tick();
-}, true);
-document.addEventListener('yt-navigate-finish', () => {
-  lastSerialized = '';
-  observePlayer();
-  tick();
-});
-window.addEventListener('beforeunload', () => {
-  if (unloading) return;
-  unloading = true;
-  ChudPresence.clear();
-});
-window.addEventListener('pagehide', () => {
-  if (unloading) return;
-  unloading = true;
-  ChudPresence.clear();
-});
-window.addEventListener('pageshow', () => {
-  unloading = false;
-  lastSerialized = '';
-  observePlayer();
-  tick();
+}
+document.addEventListener('pause', onPause, true);
+ChudPresence.lifecycle.onCleanup(() => {
+  observer.disconnect();
+  document.removeEventListener('play', tick, true);
+  document.removeEventListener('pause', onPause, true);
+  void ChudPresence.clear().catch(() => {});
 });

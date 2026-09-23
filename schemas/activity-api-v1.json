@@ -1,0 +1,550 @@
+{
+  "schemaVersion": 1,
+  "apiVersion": 1,
+  "supportedApiVersions": [
+    1
+  ],
+  "limits": {
+    "metadataBytes": 65536,
+    "reportBytes": 16384,
+    "sourceBytes": 524288,
+    "iconBytes": 262144
+  },
+  "metadataSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/ChudForks/ChudPresence-Activities/blob/main/schemas/activity.schema.json",
+    "title": "ChudPresence Activity Metadata",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "name",
+      "description",
+      "version",
+      "apiVersion",
+      "matches",
+      "entry"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      },
+      "description": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "version": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
+      },
+      "apiVersion": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "minExtensionVersion": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
+      },
+      "author": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          }
+        }
+      },
+      "contributors": {
+        "type": "array",
+        "maxItems": 16,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://"
+            }
+          }
+        }
+      },
+      "category": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{0,31}$"
+      },
+      "defaultMediaKind": {
+        "enum": ["video", "movie", "episode", "song", "stream", "game", "generic"]
+      },
+      "aliases": {
+        "type": "array",
+        "maxItems": 32,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        }
+      },
+      "tags": {
+        "type": "array",
+        "maxItems": 32,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
+        }
+      },
+      "matches": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 32,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^https://[^/]+/.+$"
+        }
+      },
+      "excludeMatches": {
+        "type": "array",
+        "maxItems": 32,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^https://[^/]+/.+$"
+        }
+      },
+      "entry": {
+        "const": "activity.js"
+      },
+      "icon": {
+        "const": "icon.png"
+      },
+      "executionWorld": {
+        "const": "USER_SCRIPT"
+      },
+      "frames": {
+        "enum": [
+          "top",
+          "all"
+        ]
+      },
+      "network": {
+        "type": "array",
+        "maxItems": 32,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^https://[^/]+/.+$"
+        }
+      },
+      "settings": {
+        "type": "array",
+        "maxItems": 32,
+        "items": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "type",
+                "label",
+                "default"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z][A-Za-z0-9_-]{0,63}$"
+                },
+                "type": {
+                  "const": "boolean"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "default": {
+                  "type": "boolean"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "type",
+                "label",
+                "default",
+                "options"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z][A-Za-z0-9_-]{0,63}$"
+                },
+                "type": {
+                  "const": "select"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "default": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "options": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 32,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "label",
+                      "value"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "value": {
+                        "type": "string",
+                        "maxLength": 128
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "type",
+                "label",
+                "default"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z][A-Za-z0-9_-]{0,63}$"
+                },
+                "type": {
+                  "const": "string"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "default": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "maxLength": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 256
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "type",
+                "label",
+                "default",
+                "min",
+                "max"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z][A-Za-z0-9_-]{0,63}$"
+                },
+                "type": {
+                  "enum": [
+                    "number",
+                    "range"
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "default": {
+                  "type": "number"
+                },
+                "min": {
+                  "type": "number"
+                },
+                "max": {
+                  "type": "number"
+                },
+                "step": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          ]
+        }
+      },
+      "repository": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https://"
+      },
+      "homepage": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https://"
+      },
+      "serviceUrl": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https://"
+      },
+      "presence": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "music",
+              "video",
+              "streaming",
+              "generic"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "reportSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/ChudForks/ChudPresence-Activities/blob/main/schemas/activity-report.schema.json",
+    "title": "ChudPresence Activity API v1 Report",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "kind",
+      "media"
+    ],
+    "properties": {
+      "kind": {
+        "enum": [
+          "video",
+          "movie",
+          "episode",
+          "song",
+          "stream",
+          "game",
+          "generic"
+        ]
+      },
+      "media": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "\\S"
+          },
+          "subtitle": {
+            "$ref": "#/$defs/text"
+          },
+          "artist": {
+            "$ref": "#/$defs/text"
+          },
+          "album": {
+            "$ref": "#/$defs/text"
+          },
+          "series": {
+            "$ref": "#/$defs/text"
+          },
+          "season": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "episode": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "creator": {
+            "$ref": "#/$defs/text"
+          },
+          "channel": {
+            "$ref": "#/$defs/text"
+          },
+          "category": {
+            "$ref": "#/$defs/text"
+          },
+          "game": {
+            "$ref": "#/$defs/text"
+          },
+          "playlist": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      },
+      "playback": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "enum": [
+              "playing",
+              "paused",
+              "stopped"
+            ]
+          },
+          "position": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 31536000
+          },
+          "duration": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 31536000
+          },
+          "live": {
+            "type": "boolean"
+          },
+          "rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 16
+          }
+        }
+      },
+      "display": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "details": {
+            "$ref": "#/$defs/text"
+          },
+          "state": {
+            "$ref": "#/$defs/text"
+          },
+          "statusDisplay": {
+            "enum": [
+              "name",
+              "details",
+              "state"
+            ]
+          }
+        }
+      },
+      "artwork": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "large": {
+            "$ref": "#/$defs/httpsUrl"
+          },
+          "largeText": {
+            "$ref": "#/$defs/text"
+          },
+          "small": {
+            "$ref": "#/$defs/httpsUrl"
+          },
+          "smallText": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      },
+      "buttons": {
+        "type": "array",
+        "maxItems": 2,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "label",
+            "url"
+          ],
+          "properties": {
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32,
+              "pattern": "\\S"
+            },
+            "url": {
+              "$ref": "#/$defs/httpsUrl"
+            }
+          }
+        }
+      },
+      "visibility": {
+        "enum": [
+          "normal",
+          "idle",
+          "private",
+          "ad"
+        ]
+      }
+    },
+    "$defs": {
+      "text": {
+        "type": "string",
+        "maxLength": 256
+      },
+      "httpsUrl": {
+        "type": "string",
+        "format": "uri",
+        "maxLength": 2048,
+        "pattern": "^https://"
+      }
+    }
+  }
+}

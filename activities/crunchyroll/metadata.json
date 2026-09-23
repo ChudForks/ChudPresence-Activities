@@ -2,12 +2,16 @@
   "id": "crunchyroll",
   "name": "Crunchyroll",
   "description": "Show the anime episode or movie playing on Crunchyroll.",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "apiVersion": 1,
   "author": {
     "name": "ChudPresence"
   },
   "category": "streaming",
+  "defaultMediaKind": "episode",
+  "aliases": ["CR", "Crunchyroll"],
+  "tags": ["anime", "video", "streaming"],
+  "serviceUrl": "https://www.crunchyroll.com/",
   "matches": [
     "https://www.crunchyroll.com/*",
     "https://crunchyroll.com/*",
@@ -16,5 +20,23 @@
   "entry": "activity.js",
   "presence": {
     "kind": "video"
-  }
+  },
+  "settings": [
+    {
+      "id": "displayMode",
+      "type": "select",
+      "label": "Episode display",
+      "default": "episode",
+      "options": [
+        { "label": "Episode then series", "value": "episode" },
+        { "label": "Series then episode", "value": "series" }
+      ]
+    },
+    {
+      "id": "showArtwork",
+      "type": "boolean",
+      "label": "Show artwork",
+      "default": true
+    }
+  ]
 }

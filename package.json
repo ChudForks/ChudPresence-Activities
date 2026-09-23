@@ -1,0 +1,28 @@
+{
+  "name": "@chudpresence/activity-sdk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "First-party tooling for building self-contained ChudPresence Activities.",
+  "types": "./schemas/activity-api-v1.d.ts",
+  "exports": {
+    "./types": "./schemas/activity-api-v1.d.ts"
+  },
+  "bin": {
+    "chudpresence": "tools/chudpresence.mjs"
+  },
+  "scripts": {
+    "activity": "node tools/chudpresence.mjs activity",
+    "check:contract": "node tools/generate-api-contract.mjs --check",
+    "check:catalog": "node tools/build-catalog.mjs --check",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

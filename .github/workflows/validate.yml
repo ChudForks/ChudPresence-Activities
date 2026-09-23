@@ -10,11 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install Activity SDK tooling
+        run: npm ci
+      - name: Run Activity SDK conformance test
+        run: npm test
+      - name: Typecheck SDK declarations and TypeScript Activities
+        run: npm run typecheck
+      - name: Check generated API contract artifacts
+        run: node tools/generate-api-contract.mjs --check
       - name: Check metadata and generated hashes
         run: node tools/build-catalog.mjs --check
+      - name: Require semantic version bumps for package changes
+        run: node tools/check-version-bumps.mjs
       - name: Check Activity JavaScript syntax
         shell: bash
         run: find activities -name activity.js -print0 | xargs -0 -n 1 node --check
