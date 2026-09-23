@@ -1,7 +1,24 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-22T23:24:34.197Z",
+  "generatedAt": "2026-09-23T00:13:18.407Z",
   "activities": [
+    {
+      "id": "crunchyroll",
+      "name": "Crunchyroll",
+      "description": "Show the anime episode or movie playing on Crunchyroll.",
+      "version": "1.0.0",
+      "apiVersion": 1,
+      "category": "streaming",
+      "matches": [
+        "https://www.crunchyroll.com/*",
+        "https://crunchyroll.com/*",
+        "https://beta.crunchyroll.com/*"
+      ],
+      "entry": "activities/crunchyroll/activity.js",
+      "metadata": "activities/crunchyroll/metadata.json",
+      "sha256": "8be801f8636757da8a63f4d0f50a73fd121b6415ae254a9ab7b792878d4799b0",
+      "metadataSha256": "bb52ecc24066e81238db8dd88fe886f1e1138e6f15b1f68eb53d5810c52aa161"
+    },
     {
       "id": "youtube-music",
       "name": "YouTube Music",

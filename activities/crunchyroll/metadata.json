@@ -1,0 +1,20 @@
+{
+  "id": "crunchyroll",
+  "name": "Crunchyroll",
+  "description": "Show the anime episode or movie playing on Crunchyroll.",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": {
+    "name": "ChudPresence"
+  },
+  "category": "streaming",
+  "matches": [
+    "https://www.crunchyroll.com/*",
+    "https://crunchyroll.com/*",
+    "https://beta.crunchyroll.com/*"
+  ],
+  "entry": "activity.js",
+  "presence": {
+    "kind": "video"
+  }
+}
