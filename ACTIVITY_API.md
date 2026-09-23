@@ -35,10 +35,18 @@ ChudPresence.report({
 
 Call `ChudPresence.clear()` when the page has no current activity. A report must
 have a title and may include `artist`, `album`, `artwork`, `url`, `playing`,
-`position`, `duration`, `kind`, `details`, `state`, and up to two buttons with
+`live`, `position`, `duration`, `kind`, `details`, `state`, and up to two buttons with
 `label` and `url`. URLs must be HTTPS. Strings are limited to 256 characters,
 button labels to 32 characters, and the serialized report to 16 KB. Supported
 kinds are `video`, `movie`, `episode`, `song`, `stream`, `game`, and `generic`.
+The `live` boolean is independent of `kind`; use `kind: "stream"` with
+`live: true` for a live broadcast. Kinds map to Discord presence as follows:
+songs to Listening, videos, movies, and episodes to Watching, games and generic
+reports to Playing. Streams use Discord's Streaming type only for Twitch and
+YouTube URLs; other URLs map to Watching because Discord validates Streaming
+links against those services. Optional metadata `presence.kind` can override the
+mapping with `music`, `video`, `streaming`, or `generic`, subject to the same
+Streaming URL requirement.
 
 Use ordinary DOM and media APIs when possible. Do not call Discord, read
 extension storage, load remote code, or request permissions beyond the sites in

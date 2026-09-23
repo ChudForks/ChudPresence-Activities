@@ -14,6 +14,7 @@
     "artwork": { "type": "string", "format": "uri", "maxLength": 2048, "pattern": "^https://" },
     "url": { "type": "string", "format": "uri", "maxLength": 2048, "pattern": "^https://" },
     "playing": { "type": "boolean" },
+    "live": { "type": "boolean" },
     "position": { "type": "number", "minimum": 0, "maximum": 31536000 },
     "duration": { "type": "number", "minimum": 0, "maximum": 31536000 },
     "kind": { "enum": ["video", "movie", "episode", "song", "stream", "game", "generic"] },

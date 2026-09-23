@@ -10,6 +10,7 @@ const checkOnly = process.argv.includes('--check');
 const idPattern = /^[a-z0-9][a-z0-9-]{1,63}$/;
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const activityKinds = new Set(['music', 'video', 'streaming', 'generic']);
+const supportedActivityApiVersions = new Set([1]);
 const metadataFields = new Set([
   'id', 'name', 'description', 'version', 'apiVersion', 'author', 'category',
   'matches', 'entry', 'icon', 'executionWorld', 'repository', 'homepage', 'presence',
@@ -50,7 +51,7 @@ function validateMetadata(metadata, directoryName, metadataText) {
   const validPrerelease = !versionMatch?.[4] || versionMatch[4].split('.').every((part) =>
     !/^\d+$/.test(part) || part === '0' || !part.startsWith('0'),
   );
-  if (!versionMatch || !validPrerelease || metadata.apiVersion !== 1) {
+  if (!versionMatch || !validPrerelease || !supportedActivityApiVersions.has(metadata.apiVersion)) {
     throw new Error(`${directoryName}: version or Activity API version is unsupported.`);
   }
   if (metadata.entry !== 'activity.js' || !Array.isArray(metadata.matches) ||
