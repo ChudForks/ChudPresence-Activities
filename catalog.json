@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-24T02:35:48.547Z",
+  "generatedAt": "2026-09-24T16:58:55.930Z",
   "activities": [
     {
       "id": "crunchyroll",
       "name": "Crunchyroll",
       "description": "Show the anime episode or movie playing on Crunchyroll.",
-      "version": "1.0.3",
+      "version": "1.0.7",
       "apiVersion": 1,
       "category": "streaming",
       "author": {
@@ -28,10 +28,10 @@
       "defaultMediaKind": "episode",
       "settings": [
         {
-          "id": "displayMode",
+          "id": "displayOrder",
           "type": "select",
-          "label": "Episode display",
-          "default": "episode",
+          "label": "Display order",
+          "default": "series",
           "options": [
             {
               "label": "Episode then series",
@@ -57,8 +57,10 @@
       ],
       "entry": "activities/crunchyroll/activity.js",
       "metadata": "activities/crunchyroll/metadata.json",
-      "sha256": "3ca529a372f4a4734acbec2b2bda76a8ede488aeac5230596fe2bbb272a225be",
-      "metadataSha256": "dc9e6d7f51b81e68cdc1ccdc7ebabf0053b75ee1700eb36613ba87b435d2ec4b"
+      "sha256": "1e3264bb8594c5be7b2d4dc5f2aaf60709b2a945f66a698d8789a7b1f8eba957",
+      "metadataSha256": "b10c9a4a5b5afa506003623b3125f40526beb8163a1f6290f09610659636aa3d",
+      "icon": "activities/crunchyroll/icon.png",
+      "iconSha256": "c82119ef8bdc7d60867e69d38291efb58737a5a4248154e6d14fb6ab4a19761f"
     },
     {
       "id": "youtube-music",

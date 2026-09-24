@@ -1,6 +1,6 @@
 let lastSerialized = null;
 let lastSentAt = 0;
-let activitySettings = { displayMode: 'episode', showArtwork: true };
+let activitySettings = { displayOrder: 'series', showArtwork: true };
 
 function textOf(el) {
   return (el?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -258,15 +258,15 @@ function collect() {
   return {
     kind: movie ? 'movie' : 'episode',
     display: movie ? undefined : {
-      details: activitySettings.displayMode === 'series' && series ? series : (episodeTitle || series || title),
-      state: activitySettings.displayMode === 'series' && series ? (episodeTitle || title) : (series || ''),
+      details: activitySettings.displayOrder === 'series' && series ? series : (episodeTitle || series || title),
+      state: activitySettings.displayOrder === 'series' && series
+        ? (episodeLabel(seasonName, season, episode) || episodeTitle || title)
+        : (series || ''),
     },
     media: {
       title: String(title).slice(0, 256),
       ...(series && !movie ? { series: String(series).slice(0, 256) } : {}),
       ...(seasonName && !movie ? { subtitle: String(seasonName).slice(0, 256) } : {}),
-      ...(!movie && season ? { season } : {}),
-      ...(!movie && episode ? { episode } : {}),
     },
     playback: {
       state: isPlaying(video, mediaSnapshot) ? 'playing' : 'paused',
@@ -277,7 +277,9 @@ function collect() {
     },
     artwork: activitySettings.showArtwork ? {
       ...(artwork ? { large: artwork } : {}),
-      ...(title ? { largeText: String(title).slice(0, 256) } : {}),
+      ...(title ? {
+        largeText: String(title).slice(0, 256),
+      } : {}),
     } : {},
     buttons,
     visibility: isAdvertisement ? 'ad' : 'normal',

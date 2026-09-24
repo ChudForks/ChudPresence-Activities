@@ -2,7 +2,7 @@
   "id": "crunchyroll",
   "name": "Crunchyroll",
   "description": "Show the anime episode or movie playing on Crunchyroll.",
-  "version": "1.0.3",
+  "version": "1.0.7",
   "apiVersion": 1,
   "author": {
     "name": "ChudPresence"
@@ -18,15 +18,16 @@
     "https://beta.crunchyroll.com/*"
   ],
   "entry": "activity.js",
+  "icon": "icon.png",
   "presence": {
     "kind": "video"
   },
   "settings": [
     {
-      "id": "displayMode",
+      "id": "displayOrder",
       "type": "select",
-      "label": "Episode display",
-      "default": "episode",
+      "label": "Display order",
+      "default": "series",
       "options": [
         { "label": "Episode then series", "value": "episode" },
         { "label": "Series then episode", "value": "series" }

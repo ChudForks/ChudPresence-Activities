@@ -68,9 +68,11 @@ test('Crunchyroll package reports an episode and reacts to V1 settings changes',
   });
   assert.equal(activity.reports.at(-1).kind, 'episode');
   assert.equal(activity.reports.at(-1).media.series, 'Series');
-  assert.equal(activity.reports.at(-1).display.details, 'Episode One');
-  activity.settings({ id: 'displayMode', value: 'series', settings: { displayMode: 'series' } });
   assert.equal(activity.reports.at(-1).display.details, 'Series');
+  assert.equal(activity.reports.at(-1).display.state, 'Episode 2');
+  activity.settings({ id: 'displayOrder', value: 'episode', settings: { displayOrder: 'episode' } });
+  assert.equal(activity.reports.at(-1).display.details, 'Episode One');
+  assert.equal(activity.reports.at(-1).display.state, 'Series');
   activity.navigate('https://www.crunchyroll.com/series/ABC123');
   assert.equal(activity.reports.at(-1), null);
   activity.cleanup();
