@@ -31,6 +31,14 @@ function videoIdFromThumb(src) {
   return String(src || '').match(/\/vi\/([\w-]{11})\//)?.[1] || '';
 }
 
+function artistSearchUrl(artist) {
+  const query = String(artist || '').replace(/\s+/g, ' ').trim();
+  if (!query) return '';
+  const url = new URL('https://music.youtube.com/search');
+  url.searchParams.set('q', query);
+  return url.toString();
+}
+
 function bestArtwork(sessionArt, fallback) {
   const list = Array.isArray(sessionArt) ? sessionArt : [];
   let best = '';
@@ -110,6 +118,9 @@ function collect() {
     : artist;
 
   const url = videoId ? `https://music.youtube.com/watch?v=${encodeURIComponent(videoId)}` : location.href;
+  const buttons = [{ label: 'Play on YouTube Music', url }];
+  const searchUrl = artistSearchUrl(artist);
+  if (searchUrl) buttons.push({ label: 'Search artist', url: searchUrl });
   return {
     kind: 'song',
     media: { title, ...(artist ? { artist } : {}), ...(album ? { album } : {}) },
@@ -125,7 +136,7 @@ function collect() {
       ...(artwork ? { large: artwork } : {}),
       ...(album ? { largeText: album } : {}),
     } : {},
-    buttons: [{ label: 'Open in YouTube Music', url }],
+    buttons,
   };
 }
 

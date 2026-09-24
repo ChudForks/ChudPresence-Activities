@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-23T17:15:44.432Z",
+  "generatedAt": "2026-09-24T02:35:48.547Z",
   "activities": [
     {
       "id": "crunchyroll",
@@ -57,14 +57,14 @@
       ],
       "entry": "activities/crunchyroll/activity.js",
       "metadata": "activities/crunchyroll/metadata.json",
-      "sha256": "7bbac39f9337b292d0ed12135c4dee098808e5e33ad9005d93be9ce714320ef1",
-      "metadataSha256": "e5a1d1492720482c1874e398b4e3fa39c63c986ea73796ed08913abce8e1e888"
+      "sha256": "3ca529a372f4a4734acbec2b2bda76a8ede488aeac5230596fe2bbb272a225be",
+      "metadataSha256": "dc9e6d7f51b81e68cdc1ccdc7ebabf0053b75ee1700eb36613ba87b435d2ec4b"
     },
     {
       "id": "youtube-music",
       "name": "YouTube Music",
       "description": "Show the song, artist, and playback progress from YouTube Music.",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "apiVersion": 1,
       "category": "music",
       "author": {
@@ -118,8 +118,8 @@
       ],
       "entry": "activities/youtube-music/activity.js",
       "metadata": "activities/youtube-music/metadata.json",
-      "sha256": "df84c0eeaf1b4add96ff3a8e5052ebf057fd8479af6adbd63dfd11aeded4dbf1",
-      "metadataSha256": "ab768550dd50a3d726bddebcdc2198ab8aacf625be10b1d24b289696dab0024f",
+      "sha256": "b3692ff97628f83a1f5d8e122aa9bc86a118cb2908fbf693c7f07bec4333dc24",
+      "metadataSha256": "a6f3cc51a1115b93f2e8a8572e1f5447d3d0576fecb38ff2c43e8283f9683c89",
       "icon": "activities/youtube-music/icon.png",
       "iconSha256": "ca92012f8317a578b68a6d21011482ef9ebcba334fc0fe9a4caa7c092e47ac1e"
     }
