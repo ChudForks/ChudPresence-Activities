@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 async function runActivity(id, {
   url, title = '', metadata = null, selectors = {}, selectorLookup = null,
-  frames = [], storage = {}, netFetch = null,
+  frames = [], storage = {}, netFetch = null, pageExecute = null,
 } = {}) {
   const source = await fs.readFile(path.join(root, 'activities', id, 'activity.js'), 'utf8');
   const reports = [];
@@ -47,6 +47,8 @@ async function runActivity(id, {
   const ChudPresence = {
     report(report) { reports.push(report); return Promise.resolve(); },
     clear() { reports.push(null); return Promise.resolve(); },
+    runtime: { has(feature) { return feature === 'pageExecute'; } },
+    page: { execute(fn, args) { return Promise.resolve(pageExecute?.(fn, args) ?? null); } },
     lifecycle: {
       signal: { aborted: false },
       interval(callback) { heartbeat = callback; },
@@ -171,6 +173,64 @@ test('YouTube Music package reports a song and applies V1 presentation settings'
   assert.equal(activity.reports.at(-1), null);
   activity.cleanup();
   assert.equal(activity.reports.at(-1), null);
+});
+
+test('YouTube package reports a Short through the page bridge and clears advertisements', async () => {
+  const video = { currentTime: 5, duration: 20, paused: false, ended: false, playbackRate: 1 };
+  const page = { videoId: 'abcdefghijk', title: 'A Short', author: 'A Creator', position: 5,
+    duration: 20, state: 1, live: false, ad: false };
+  const activity = await runActivity('youtube', {
+    url: 'https://www.youtube.com/shorts/abcdefghijk',
+    title: 'A Short - YouTube',
+    selectors: {
+      '#shorts-player video.html5-main-video': video,
+      '#owner #channel-name a': { textContent: 'A Creator', href: 'https://www.youtube.com/@creator' },
+    },
+    pageExecute: () => page,
+  });
+  await flushActivity();
+  const short = activity.reports.at(-1);
+  assert.equal(short.kind, 'video');
+  assert.equal(short.media.title, 'A Short');
+  assert.equal(short.media.creator, 'A Creator');
+  assert.equal(short.playback.position, 5);
+  assert.equal(short.buttons[0].label, 'Watch Short');
+  assert.equal(short.buttons[1].url, 'https://www.youtube.com/@creator');
+  page.ad = true;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1), null);
+  activity.cleanup();
+});
+
+test('YouTube package reports live playback and ignores a stale player after navigation', async () => {
+  const video = { currentTime: 90, duration: 600, paused: false, ended: false, playbackRate: 1 };
+  const page = { videoId: 'abcdefghijk', title: 'Live now', author: 'A Channel', position: 90,
+    duration: 0, state: 1, live: true, ad: false };
+  const activity = await runActivity('youtube', {
+    url: 'https://www.youtube.com/watch?v=abcdefghijk',
+    title: 'Live now - YouTube',
+    selectors: { '#movie_player video.html5-main-video': video },
+    pageExecute: () => page,
+  });
+  await flushActivity();
+  const live = activity.reports.at(-1);
+  assert.equal(live.kind, 'stream');
+  assert.equal(live.playback.live, true);
+  assert.equal(live.playback.duration, 0);
+  assert.equal(live.buttons[0].url, 'https://www.youtube.com/watch?v=abcdefghijk');
+  activity.navigate('https://www.youtube.com/watch?v=lmnopqrstuv');
+  await flushActivity();
+  assert.equal(activity.reports.at(-1), null);
+  page.videoId = 'lmnopqrstuv';
+  page.title = 'Next video';
+  page.live = false;
+  video.duration = 180;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).kind, 'video');
+  assert.equal(activity.reports.at(-1).media.title, 'Next video');
+  activity.cleanup();
 });
 
 test('Kick package reports a live channel through the Activity API and clears off-channel', async () => {

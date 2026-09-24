@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-24T20:29:22.219Z",
+  "generatedAt": "2026-09-24T20:52:53.941Z",
   "activities": [
     {
       "id": "67movies",
@@ -185,6 +185,42 @@
       "metadataSha256": "b4f536b875d4c6f22a0f5683ffc607b13d62170ed0ce2094bc3d6d3a9dbf4080",
       "icon": "activities/twitch/icon.png",
       "iconSha256": "1d44a9af3da79a72543fd48e5d8466c54409a6e15d5b97944619a4e37184bca6"
+    },
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "description": "Show YouTube videos, Shorts, and live streams as an Activity.",
+      "version": "1.0.0",
+      "apiVersion": 1,
+      "category": "video",
+      "author": {
+        "name": "ChudPresence"
+      },
+      "aliases": [
+        "YT",
+        "YouTube Shorts",
+        "YouTube Live"
+      ],
+      "tags": [
+        "video",
+        "shorts",
+        "live"
+      ],
+      "serviceUrl": "https://www.youtube.com/",
+      "presence": {
+        "kind": "video"
+      },
+      "defaultMediaKind": "video",
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*"
+      ],
+      "entry": "activities/youtube/activity.js",
+      "metadata": "activities/youtube/metadata.json",
+      "sha256": "d25e87654e58fa12f9d2b791a8ef4205704c7771bd936d89f1e90545da67d1cb",
+      "metadataSha256": "d092821a72c66e183504ce1186ce36ee322e8043cd9e9d87e594b5e8c7db7568",
+      "icon": "activities/youtube/icon.png",
+      "iconSha256": "fc098ac5d0282c91cb26cf25d63dcd598c515d41986a4afa13f6a6d1d7d73268"
     },
     {
       "id": "youtube-music",

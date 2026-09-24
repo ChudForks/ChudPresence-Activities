@@ -44,6 +44,9 @@ including embedded player progress and The Movie Database artwork.
 `activities/kick` and `activities/twitch` report live streams and recorded
 videos with official service icons. None of these providers needs extension-core
 special handling.
+`activities/youtube` reports videos, Shorts, and live streams. The Chromium lab
+includes a copy for first-install defaults; it remains removable in the Library.
+Its icon is the PNG used by [YouTube's official brand site](https://brand.youtube/).
 The Kick icon is the PNG linked as the Apple touch icon by `https://kick.com/`
 (`https://kick.com/apple-icon.png?apple-icon.0ldhg5ovdrppx.png`).
 The Twitch icon is the purple Glitch PNG from Twitch's press center
