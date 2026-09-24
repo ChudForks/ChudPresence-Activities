@@ -173,6 +173,55 @@ test('YouTube Music package reports a song and applies V1 presentation settings'
   assert.equal(activity.reports.at(-1), null);
 });
 
+test('Kick package reports a live channel through the Activity API and clears off-channel', async () => {
+  const video = { duration: Infinity, currentTime: 75, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('kick', {
+    url: 'https://kick.com/streamer',
+    title: 'Kick',
+    selectors: {
+      'video[data-testid="video-player"], .vjs-tech, .video-js video, video': video,
+      '[data-testid="livestream-title"]': { textContent: 'Live stream title' },
+      'meta[property="og:image"], meta[name="og:image"]': { content: 'https://images.kick.com/live.jpg' },
+    },
+  });
+  const live = activity.reports.at(-1);
+  assert.equal(live.kind, 'stream');
+  assert.equal(live.media.title, 'Live stream title');
+  assert.equal(live.media.creator, 'streamer');
+  assert.equal(live.playback.live, true);
+  assert.equal(live.playback.state, 'playing');
+  assert.equal(live.artwork.large, 'https://images.kick.com/live.jpg');
+  assert.equal(live.buttons[0].url, 'https://kick.com/streamer');
+  activity.navigate('https://kick.com/browse');
+  assert.equal(activity.reports.at(-1), null);
+  activity.cleanup();
+});
+
+test('Kick package treats a recorded video as VOD even if a live badge is visible', async () => {
+  const video = { duration: 300, currentTime: 40, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('kick', {
+    url: 'https://kick.com/streamer/videos/01234567-89ab-cdef-0123-456789abcdef',
+    title: 'Kick',
+    selectors: {
+      'video[data-testid="video-player"], .vjs-tech, .video-js video, video': video,
+      '[data-testid="video-title"]': { textContent: 'Past broadcast' },
+      '[data-testid="live-badge"], [data-testid="livestream-badge"], [data-testid="stream-is-live"], .live-badge': {},
+    },
+  });
+  const vod = activity.reports.at(-1);
+  assert.equal(vod.kind, 'video');
+  assert.equal(vod.playback.live, false);
+  assert.equal(vod.playback.position, 40);
+  assert.equal(vod.playback.duration, 300);
+  assert.deepEqual(Object.keys(vod.artwork), []);
+  assert.equal(vod.buttons[0].label, 'Watch on Kick');
+  assert.equal(vod.buttons[1].url, 'https://kick.com/streamer');
+  video.paused = true;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  activity.cleanup();
+});
+
 test('67Movies package reports a movie from the watch URL and TMDB metadata', async () => {
   const fetches = [];
   const activity = await runActivity('67movies', {

@@ -40,8 +40,11 @@ reports, presentation settings, SPA navigation, media helpers, DOM observation,
 and lifecycle cleanup. `activities/youtube-music` is the reference music
 Activity for song, artist, album, artwork, timestamps, settings, and media
 state. `activities/67movies` reports the movie or episode playing on 67Movies,
-including embedded player progress and The Movie Database artwork. None of
-these providers needs extension-core special handling.
+including embedded player progress and The Movie Database artwork.
+`activities/kick` reports live streams and recorded videos with Kick's official
+site icon. None of these providers needs extension-core special handling.
+The Kick icon is the PNG linked as the Apple touch icon by `https://kick.com/`
+(`https://kick.com/apple-icon.png?apple-icon.0ldhg5ovdrppx.png`).
 
 ## Contribute
 

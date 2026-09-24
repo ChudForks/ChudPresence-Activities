@@ -1,0 +1,17 @@
+{
+  "id": "kick",
+  "name": "Kick",
+  "description": "Show the live stream or video playing on Kick.",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": { "name": "ChudPresence" },
+  "category": "streaming",
+  "defaultMediaKind": "stream",
+  "aliases": ["Kick.com"],
+  "tags": ["live", "streams", "videos"],
+  "serviceUrl": "https://kick.com/",
+  "matches": ["https://kick.com/*", "https://www.kick.com/*"],
+  "entry": "activity.js",
+  "icon": "icon.png",
+  "presence": { "kind": "video" }
+}

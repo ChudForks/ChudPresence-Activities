@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-24T19:14:49.092Z",
+  "generatedAt": "2026-09-24T19:49:59.037Z",
   "activities": [
     {
       "id": "67movies",
@@ -117,6 +117,40 @@
       "metadataSha256": "b10c9a4a5b5afa506003623b3125f40526beb8163a1f6290f09610659636aa3d",
       "icon": "activities/crunchyroll/icon.png",
       "iconSha256": "c82119ef8bdc7d60867e69d38291efb58737a5a4248154e6d14fb6ab4a19761f"
+    },
+    {
+      "id": "kick",
+      "name": "Kick",
+      "description": "Show the live stream or video playing on Kick.",
+      "version": "1.0.0",
+      "apiVersion": 1,
+      "category": "streaming",
+      "author": {
+        "name": "ChudPresence"
+      },
+      "aliases": [
+        "Kick.com"
+      ],
+      "tags": [
+        "live",
+        "streams",
+        "videos"
+      ],
+      "serviceUrl": "https://kick.com/",
+      "presence": {
+        "kind": "video"
+      },
+      "defaultMediaKind": "stream",
+      "matches": [
+        "https://kick.com/*",
+        "https://www.kick.com/*"
+      ],
+      "entry": "activities/kick/activity.js",
+      "metadata": "activities/kick/metadata.json",
+      "sha256": "adcb58b8c2750e38aec8a496181699df1a7e0e7b1a987dbf211e2b20bb42dd3a",
+      "metadataSha256": "f7c9b1dc9668929245a545ec9886dff91f31c89d455bc2066eeb7c9ff596d9c5",
+      "icon": "activities/kick/icon.png",
+      "iconSha256": "da4eab2da290778ef9f8af74256c257f04f29f1e458388e6ccdf882bbb8529ca"
     },
     {
       "id": "youtube-music",
