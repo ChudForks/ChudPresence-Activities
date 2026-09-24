@@ -203,6 +203,30 @@ test('YouTube package reports a Short through the page bridge and clears adverti
   activity.cleanup();
 });
 
+test('YouTube package treats a regular video as watching when a reusable live badge is in the DOM', async () => {
+  const video = { currentTime: 24, duration: 480, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube', {
+    url: 'https://www.youtube.com/watch?v=abcdefghijk',
+    title: 'A recorded video - YouTube',
+    selectors: {
+      '#movie_player video.html5-main-video': video,
+      '#movie_player .ytp-live-badge, #shorts-player .ytp-live-badge': { hidden: false },
+      'ytd-watch-flexy': {
+        hasAttribute(name) { return name === 'is-live-video'; },
+        getAttribute(name) { return name === 'is-live-video' ? '' : null; },
+      },
+    },
+    pageExecute: () => ({ videoId: 'abcdefghijk', title: 'A recorded video',
+      author: 'A Creator', position: 24, duration: 480, state: 1, live: false, ad: false }),
+  });
+  await flushActivity();
+  const report = activity.reports.at(-1);
+  assert.equal(report.kind, 'video');
+  assert.equal(report.playback.live, false);
+  assert.equal(report.playback.duration, 480);
+  activity.cleanup();
+});
+
 test('YouTube package reports live playback and ignores a stale player after navigation', async () => {
   const video = { currentTime: 90, duration: 600, paused: false, ended: false, playbackRate: 1 };
   const page = { videoId: 'abcdefghijk', title: 'Live now', author: 'A Channel', position: 90,

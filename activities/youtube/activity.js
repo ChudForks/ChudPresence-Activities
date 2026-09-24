@@ -123,9 +123,7 @@ function domLive(video) {
   const flexy = document.querySelector('ytd-watch-flexy');
   const liveFlag = flexy?.getAttribute?.('is-live-video');
   if (flexy?.hasAttribute?.('is-live-video') && liveFlag !== 'false') return true;
-  if (video?.duration === Infinity) return true;
-  const badge = document.querySelector('#movie_player .ytp-live-badge, #shorts-player .ytp-live-badge');
-  return Boolean(badge && !badge.hidden && !badge.classList?.contains('ytp-hidden'));
+  return video?.duration === Infinity;
 }
 
 function pageTitle() {
@@ -188,7 +186,7 @@ function collect(page) {
   if (!title) return null;
   const creator = (page?.author || metadata?.artist || channelName() || '').trim().slice(0, 256);
   const videoDuration = Number.isFinite(snapshot?.duration) ? snapshot.duration : video?.duration;
-  const live = domLive(video) || page?.live === true;
+  const live = page?.live === true || video?.duration === Infinity || (!page && domLive(video));
   const duration = live ? 0 : page?.duration || (Number.isFinite(videoDuration) && videoDuration > 0 ? videoDuration : 0);
   const videoPosition = Number.isFinite(snapshot?.currentTime) ? snapshot.currentTime : video?.currentTime;
   const position = Number.isFinite(page?.position) && page.position > 0
