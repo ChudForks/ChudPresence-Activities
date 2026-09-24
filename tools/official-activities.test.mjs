@@ -222,6 +222,56 @@ test('Kick package treats a recorded video as VOD even if a live badge is visibl
   activity.cleanup();
 });
 
+test('Twitch package reports a live channel and clears on a browsing route', async () => {
+  const video = { duration: Infinity, currentTime: 75, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('twitch', {
+    url: 'https://www.twitch.tv/streamer',
+    title: 'Twitch',
+    selectors: {
+      'video[data-a-target="player-video"], .video-player video, video': video,
+      '[data-a-target="stream-title"]': { textContent: 'Ranked with friends' },
+      'meta[property="og:image"], meta[name="og:image"]': { content: 'https://static-cdn.jtvnw.net/preview.jpg' },
+    },
+  });
+  const live = activity.reports.at(-1);
+  assert.equal(live.kind, 'stream');
+  assert.equal(live.media.title, 'Ranked with friends');
+  assert.equal(live.media.creator, 'streamer');
+  assert.equal(live.playback.live, true);
+  assert.equal(live.playback.state, 'playing');
+  assert.equal(live.artwork.large, 'https://static-cdn.jtvnw.net/preview.jpg');
+  assert.equal(live.buttons[0].url, 'https://www.twitch.tv/streamer');
+  activity.navigate('https://www.twitch.tv/directory');
+  assert.equal(activity.reports.at(-1), null);
+  activity.cleanup();
+});
+
+test('Twitch package reports a VOD despite a channel live indicator', async () => {
+  const video = { duration: 300, currentTime: 40, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('twitch', {
+    url: 'https://www.twitch.tv/streamer/video/123456',
+    title: 'Twitch',
+    metadata: { '@type': 'VideoObject', name: 'Past broadcast' },
+    selectors: {
+      'video[data-a-target="player-video"], .video-player video, video': video,
+      '[data-a-target="stream-title"], [data-a-target="player-live-badge"], [data-test-selector="live-indicator"]': {},
+    },
+  });
+  const vod = activity.reports.at(-1);
+  assert.equal(vod.kind, 'video');
+  assert.equal(vod.media.title, 'Past broadcast');
+  assert.equal(vod.playback.live, false);
+  assert.equal(vod.playback.position, 40);
+  assert.equal(vod.playback.duration, 300);
+  assert.deepEqual(Object.keys(vod.artwork), []);
+  assert.equal(vod.buttons[0].url, 'https://www.twitch.tv/streamer/video/123456');
+  assert.equal(vod.buttons[1].url, 'https://www.twitch.tv/streamer');
+  video.paused = true;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  activity.cleanup();
+});
+
 test('67Movies package reports a movie from the watch URL and TMDB metadata', async () => {
   const fetches = [];
   const activity = await runActivity('67movies', {
