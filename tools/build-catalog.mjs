@@ -212,10 +212,13 @@ export function validateMetadata(metadata, directoryName, metadataText = JSON.st
 async function readPackage(directoryName) {
   if (!idPattern.test(directoryName)) throw new Error(`Invalid Activity directory name: ${directoryName}`);
   const directory = path.join(activityRoot, directoryName);
-  const metadataText = await fs.readFile(path.join(directory, 'metadata.json'), 'utf8');
+  // Git stores Activity text with LF endings even when an older Windows
+  // checkout still has CRLF. Hash the bytes served from the Git revision.
+  const repositoryText = (value) => value.replace(/\r\n/g, '\n');
+  const metadataText = repositoryText(await fs.readFile(path.join(directory, 'metadata.json'), 'utf8'));
   const metadata = JSON.parse(metadataText);
   validateMetadata(metadata, directoryName, metadataText);
-  const source = await fs.readFile(path.join(directory, 'activity.js'), 'utf8');
+  const source = repositoryText(await fs.readFile(path.join(directory, 'activity.js'), 'utf8'));
   if (!source.trim() || Buffer.byteLength(source, 'utf8') > MAX_ACTIVITY_SOURCE_BYTES) {
     throw new Error(`${directoryName}: activity.js is empty or exceeds ${Math.round(MAX_ACTIVITY_SOURCE_BYTES / 1024)} KB.`);
   }

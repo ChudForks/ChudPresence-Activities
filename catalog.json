@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-24T21:01:35.816Z",
+  "generatedAt": "2026-09-24T21:16:04.054Z",
   "activities": [
     {
       "id": "67movies",
@@ -113,8 +113,8 @@
       ],
       "entry": "activities/crunchyroll/activity.js",
       "metadata": "activities/crunchyroll/metadata.json",
-      "sha256": "1e3264bb8594c5be7b2d4dc5f2aaf60709b2a945f66a698d8789a7b1f8eba957",
-      "metadataSha256": "b10c9a4a5b5afa506003623b3125f40526beb8163a1f6290f09610659636aa3d",
+      "sha256": "ced9764328e44d67cfc2c3fe3abcf739decabc5f5a880be51a8aa150def41af2",
+      "metadataSha256": "d9a5c881e7c6b16011eebc424975e9f53192d66f1f8f8d10bd064dcb4ae0c508",
       "icon": "activities/crunchyroll/icon.png",
       "iconSha256": "c82119ef8bdc7d60867e69d38291efb58737a5a4248154e6d14fb6ab4a19761f"
     },
@@ -280,8 +280,8 @@
       ],
       "entry": "activities/youtube-music/activity.js",
       "metadata": "activities/youtube-music/metadata.json",
-      "sha256": "b3692ff97628f83a1f5d8e122aa9bc86a118cb2908fbf693c7f07bec4333dc24",
-      "metadataSha256": "a6f3cc51a1115b93f2e8a8572e1f5447d3d0576fecb38ff2c43e8283f9683c89",
+      "sha256": "ec65b51b69e718af03639ac06e0123a6a25654181b6069f51a04970b7d392d61",
+      "metadataSha256": "9e515a00b50b5fcf84e9b25a7953762e79343b98a49cee8f58f8013f41fbe2b1",
       "icon": "activities/youtube-music/icon.png",
       "iconSha256": "ca92012f8317a578b68a6d21011482ef9ebcba334fc0fe9a4caa7c092e47ac1e"
     }
