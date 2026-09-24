@@ -1,7 +1,63 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-24T16:58:55.930Z",
+  "generatedAt": "2026-09-24T19:14:49.092Z",
   "activities": [
+    {
+      "id": "67movies",
+      "name": "67Movies",
+      "description": "Show the movie or TV episode playing on 67Movies.",
+      "version": "1.0.3",
+      "apiVersion": 1,
+      "category": "streaming",
+      "author": {
+        "name": "ChudPresence"
+      },
+      "aliases": [
+        "67Movies",
+        "Movies67"
+      ],
+      "tags": [
+        "movies",
+        "tv",
+        "streaming"
+      ],
+      "serviceUrl": "https://67movies.st/",
+      "presence": {
+        "kind": "video"
+      },
+      "defaultMediaKind": "episode",
+      "network": [
+        "https://api.themoviedb.org/*"
+      ],
+      "settings": [
+        {
+          "id": "displayOrder",
+          "type": "select",
+          "label": "Display order",
+          "default": "series",
+          "options": [
+            {
+              "label": "Series then episode",
+              "value": "series"
+            },
+            {
+              "label": "Episode then series",
+              "value": "episode"
+            }
+          ]
+        }
+      ],
+      "matches": [
+        "https://67movies.st/*",
+        "https://www.67movies.st/*"
+      ],
+      "entry": "activities/67movies/activity.js",
+      "metadata": "activities/67movies/metadata.json",
+      "sha256": "2a2e4db3a3f714c465084b312b99c38faff1eb05d628cef1b9c7fea3e058391d",
+      "metadataSha256": "88792f04714f94479e3ef6dff2f88ec35e0e68666344d7ab7dea9e7efb5b36b2",
+      "icon": "activities/67movies/icon.png",
+      "iconSha256": "ecdea16b3d518e9c25b55641932fbf6b11ae2502e9abf2adf448aa0aeeb8f5fa"
+    },
     {
       "id": "crunchyroll",
       "name": "Crunchyroll",

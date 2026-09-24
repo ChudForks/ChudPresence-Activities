@@ -39,7 +39,9 @@ permission and a second click for the declared origins.
 reports, presentation settings, SPA navigation, media helpers, DOM observation,
 and lifecycle cleanup. `activities/youtube-music` is the reference music
 Activity for song, artist, album, artwork, timestamps, settings, and media
-state. Neither provider needs extension-core special handling.
+state. `activities/67movies` reports the movie or episode playing on 67Movies,
+including embedded player progress and The Movie Database artwork. None of
+these providers needs extension-core special handling.
 
 ## Contribute
 

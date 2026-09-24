@@ -7,24 +7,42 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-async function runActivity(id, { url, title = '', metadata = null, selectors = {}, selectorLookup = null }) {
+async function runActivity(id, {
+  url, title = '', metadata = null, selectors = {}, selectorLookup = null,
+  frames = [], storage = {}, netFetch = null,
+} = {}) {
   const source = await fs.readFile(path.join(root, 'activities', id, 'activity.js'), 'utf8');
   const reports = [];
   const cleanups = [];
+  const windowListeners = [];
   let settingsChanged;
   let navigationChanged;
   let mediaChanged;
   let heartbeat;
   let now = 2000;
   const location = new URL(url);
+  const store = {};
   const document = {
     title,
+    hidden: false,
     documentElement: {},
     querySelector(selector) { return selectors[selector] || selectorLookup?.(selector) || null; },
-    querySelectorAll(selector) { return selector === 'script[type="application/ld+json"]' && metadata
-      ? [{ textContent: JSON.stringify(metadata) }] : []; },
+    querySelectorAll(selector) {
+      if (selector === 'script[type="application/ld+json"]' && metadata) {
+        return [{ textContent: JSON.stringify(metadata) }];
+      }
+      if (selector === 'iframe') return frames;
+      return [];
+    },
     addEventListener() {},
     removeEventListener() {},
+  };
+  const pageWindow = {
+    addEventListener(type, callback) { windowListeners.push({ type, callback }); },
+    removeEventListener(type, callback) {
+      const index = windowListeners.findIndex((item) => item.type === type && item.callback === callback);
+      if (index >= 0) windowListeners.splice(index, 1);
+    },
   };
   const ChudPresence = {
     report(report) { reports.push(report); return Promise.resolve(); },
@@ -37,16 +55,39 @@ async function runActivity(id, { url, title = '', metadata = null, selectors = {
     navigation: { onChange(callback) { navigationChanged = callback; } },
     media: { find() { return null; }, snapshot() { return null; }, onChange(callback) { mediaChanged = callback; } },
     dom: { observe() {} },
+    net: {
+      fetch(requestUrl, options) {
+        if (typeof netFetch === 'function') return netFetch(requestUrl, options);
+        return Promise.reject(Object.assign(new Error('Network unavailable'), { code: 'network_unavailable' }));
+      },
+    },
     settings: {
       getAll() { return Promise.resolve({}); },
       onChange(callback) { settingsChanged = callback; },
+    },
+    storage: {
+      get(key) { return Promise.resolve(Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null); },
+      set(key, value) { store[key] = value; return Promise.resolve(true); },
+      remove(key) {
+        const had = Object.prototype.hasOwnProperty.call(store, key);
+        delete store[key];
+        return Promise.resolve(had);
+      },
+      clear() {
+        const count = Object.keys(store).length;
+        for (const key of Object.keys(store)) delete store[key];
+        return Promise.resolve(count);
+      },
     },
   };
   class DateAt extends Date { static now() { return now; } }
   class MutationObserver { observe() {} disconnect() {} }
   vm.runInNewContext(source, {
     ChudPresence, Date: DateAt, MutationObserver, URL, URLSearchParams,
-    document, location,
+    document, location, window: pageWindow,
+    localStorage: {
+      getItem(key) { return Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null; },
+    },
     navigator: { mediaSession: { playbackState: 'playing', metadata: metadata?.mediaSession || metadata } },
   }, { filename: `${id}/activity.js` });
   return {
@@ -54,9 +95,20 @@ async function runActivity(id, { url, title = '', metadata = null, selectors = {
     settings(event) { now += 2000; settingsChanged(event); },
     navigate(href) { now += 500; location.href = href; navigationChanged(); },
     mediaChange() { now += 500; mediaChanged(); },
+    message(event) {
+      for (const listener of windowListeners) {
+        if (listener.type === 'message') listener.callback(event);
+      }
+    },
     advance() { now += 2000; heartbeat(); },
     cleanup() { for (const callback of cleanups) callback(); },
+    document,
+    storage: store,
   };
+}
+
+async function flushActivity() {
+  for (let i = 0; i < 8; i += 1) await Promise.resolve();
 }
 
 test('Crunchyroll package reports an episode and reacts to V1 settings changes', async () => {
@@ -119,4 +171,240 @@ test('YouTube Music package reports a song and applies V1 presentation settings'
   assert.equal(activity.reports.at(-1), null);
   activity.cleanup();
   assert.equal(activity.reports.at(-1), null);
+});
+
+test('67Movies package reports a movie from the watch URL and TMDB metadata', async () => {
+  const fetches = [];
+  const activity = await runActivity('67movies', {
+    url: 'https://67movies.st/watch/movie/456?ref=home',
+    storage: {
+      'progress:m456': JSON.stringify({ position: 40, duration: 7200 }),
+      continueWatching: JSON.stringify({
+        'movie-456': { title: 'Stored Movie', progress: { watched: 40, duration: 7200 } },
+      }),
+    },
+    netFetch(requestUrl) {
+      fetches.push(requestUrl);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        data: {
+          title: 'Example Movie',
+          release_date: '2024-01-02',
+          poster_path: '/poster.jpg',
+          runtime: 120,
+        },
+      });
+    },
+  });
+  await flushActivity();
+  activity.advance();
+  const movie = activity.reports.at(-1);
+  assert.equal(movie.kind, 'movie');
+  assert.equal(movie.media.title, 'Example Movie');
+  assert.equal(movie.media.subtitle, '2024');
+  assert.equal(movie.display.details, 'Example Movie');
+  assert.equal(movie.display.state, '');
+  assert.equal(movie.playback.state, 'paused');
+  assert.equal(movie.playback.position, 40);
+  assert.equal(movie.playback.duration, 7200);
+  assert.equal(movie.artwork.large, 'https://image.tmdb.org/t/p/w500/poster.jpg');
+  assert.equal(movie.buttons[0].label, 'Watch movie');
+  assert.equal(movie.buttons[0].url, 'https://67movies.st/watch/movie/456');
+  assert.equal(movie.buttons[1].label, 'Open 67Movies');
+  assert.equal(movie.buttons[1].url, 'https://67movies.st/');
+  assert.match(fetches[0], /^https:\/\/api\.themoviedb\.org\/3\/movie\/456\?/);
+  activity.navigate('https://67movies.st/');
+  assert.equal(activity.reports.at(-1), null);
+  activity.cleanup();
+  assert.equal(activity.reports.at(-1), null);
+});
+
+test('67Movies reads the embedded TV route and applies V1 display settings', async () => {
+  const frames = [];
+  const activity = await runActivity('67movies', {
+    url: 'https://67movies.st/watch/tv/123',
+    frames,
+    storage: {
+      continueWatching: JSON.stringify({
+        'tv-123-2-4': { title: 'Stored Episode', progress: { watched: 12, duration: 1440 } },
+      }),
+    },
+    netFetch(requestUrl) {
+      if (requestUrl.includes('/season/')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          data: {
+            episodes: [{ episode_number: 4, name: 'The Pilot', still_path: '/still.jpg', runtime: 24 }],
+          },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        data: { name: 'Example Show', poster_path: '/poster.jpg', episode_run_time: [24] },
+      });
+    },
+  });
+  assert.equal(activity.reports.at(-1), null);
+  frames.push({ src: 'https://player.videasy.net/embed/tv/123/2/4', contentWindow: {} });
+  activity.advance();
+  await flushActivity();
+  activity.advance();
+  const episode = activity.reports.at(-1);
+  assert.equal(episode.kind, 'episode');
+  assert.equal(episode.media.title, 'The Pilot');
+  assert.equal(episode.media.series, 'Example Show');
+  assert.equal(episode.media.season, 2);
+  assert.equal(episode.media.episode, 4);
+  assert.equal(episode.display.details, 'Example Show');
+  assert.equal(episode.display.state, 'The Pilot');
+  assert.equal(episode.artwork.largeText, 'Season 2, Episode 4 • The Pilot');
+  assert.equal(episode.artwork.large, 'https://image.tmdb.org/t/p/w500/still.jpg');
+  assert.equal(episode.buttons[0].label, 'Watch on 67Movies');
+  assert.equal(episode.buttons[0].url, 'https://67movies.st/watch/tv/123/2/4');
+  activity.settings({
+    id: 'displayOrder',
+    value: 'episode',
+    settings: { displayOrder: 'episode' },
+  });
+  assert.equal(activity.reports.at(-1).display.details, 'The Pilot');
+  assert.equal(activity.reports.at(-1).display.state, 'Example Show');
+  assert.equal(activity.reports.at(-1).artwork.large, 'https://image.tmdb.org/t/p/w500/still.jpg');
+  activity.cleanup();
+});
+
+test('67Movies trusts player messages only from the embedded player frame', async () => {
+  const playerWindow = {};
+  const frames = [{
+    src: 'https://111movies.net/embed/movie/456',
+    contentWindow: playerWindow,
+  }];
+  const activity = await runActivity('67movies', {
+    url: 'https://67movies.st/watch/movie/456',
+    frames,
+    storage: {
+      continueWatching: JSON.stringify({ 'movie-456': { title: 'Example Movie' } }),
+    },
+    netFetch() {
+      return Promise.reject(Object.assign(new Error('offline'), { code: 'network_error' }));
+    },
+  });
+  await flushActivity();
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  activity.message({
+    origin: 'https://evil.example',
+    source: playerWindow,
+    data: { event: 'playing', data: { currentTime: 90, duration: 5400 } },
+  });
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  activity.message({
+    origin: 'https://111movies.net',
+    source: {},
+    data: { event: 'playing', data: { currentTime: 90, duration: 5400 } },
+  });
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  activity.message({
+    origin: 'https://111movies.net',
+    source: playerWindow,
+    data: { event: 'playing', data: { currentTime: 15, duration: 5400 } },
+  });
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  assert.equal(activity.reports.at(-1).playback.position, 15);
+  assert.equal(activity.reports.at(-1).playback.duration, 5400);
+  activity.message({
+    origin: 'https://111movies.net',
+    source: playerWindow,
+    data: { event: 'pause', data: { currentTime: 16, duration: 5400 } },
+  });
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  activity.cleanup();
+});
+
+test('67Movies treats a /movie URL as a movie even when TV history is newer-looking', async () => {
+  const activity = await runActivity('67movies', {
+    url: 'https://67movies.st/watch/movie/1423191',
+    frames: [{ src: 'https://player.vidlove.cc/embed/movie/1423191?poster=true', contentWindow: {} }],
+    storage: {
+      continueWatching: JSON.stringify({
+        'tv-250203-1-1': {
+          id: '250203', type: 'tv', season: 1, episode: 1, title: 'Brothers', updatedAt: 50,
+        },
+        'movie-1423191': {
+          id: '1423191', type: 'movie', title: 'Resident Evil', updatedAt: 99,
+        },
+      }),
+    },
+    netFetch(requestUrl) {
+      assert.match(requestUrl, /\/movie\/1423191\?/);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        data: { title: 'Resident Evil', poster_path: '/resident-movie.jpg', release_date: '2002-03-15', runtime: 100 },
+      });
+    },
+  });
+  await flushActivity();
+  activity.advance();
+  const movie = activity.reports.at(-1);
+  assert.equal(movie.kind, 'movie');
+  assert.equal(movie.media.title, 'Resident Evil');
+  assert.equal(movie.media.series, undefined);
+  assert.equal(movie.display.details, 'Resident Evil');
+  assert.equal(movie.display.state, '');
+  assert.equal(movie.buttons[0].label, 'Watch movie');
+  assert.equal(movie.buttons[0].url, 'https://67movies.st/watch/movie/1423191');
+  assert.equal(movie.artwork.large, 'https://image.tmdb.org/t/p/w500/resident-movie.jpg');
+  activity.document.hidden = true;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).kind, 'movie');
+  assert.equal(activity.reports.at(-1).artwork.large, 'https://image.tmdb.org/t/p/w500/resident-movie.jpg');
+  activity.cleanup();
+});
+
+test('67Movies keeps the poster when a background tab loses the embed', async () => {
+  const frames = [{ src: 'https://111movies.net/embed/tv/123/2/4', contentWindow: {} }];
+  const activity = await runActivity('67movies', {
+    url: 'https://67movies.st/watch/tv/123',
+    frames,
+    storage: {
+      continueWatching: JSON.stringify({
+        'tv-123-2-4': { title: 'Resident Evil', progress: { watched: 24, duration: 1440 } },
+      }),
+    },
+    netFetch(requestUrl) {
+      if (requestUrl.includes('/season/')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          data: { episodes: [{ episode_number: 4, name: 'Outbreak', still_path: '/still.jpg', runtime: 24 }] },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        data: { name: 'Resident Evil', poster_path: '/poster.jpg', episode_run_time: [24] },
+      });
+    },
+  });
+  await flushActivity();
+  activity.advance();
+  assert.equal(activity.reports.at(-1).artwork.large, 'https://image.tmdb.org/t/p/w500/still.jpg');
+  activity.document.hidden = true;
+  frames.splice(0, frames.length);
+  activity.advance();
+  const hidden = activity.reports.at(-1);
+  assert.equal(hidden.media.series, 'Resident Evil');
+  assert.equal(hidden.artwork.large, 'https://image.tmdb.org/t/p/w500/still.jpg');
+  assert.notEqual(hidden, null);
+  activity.document.hidden = false;
+  activity.advance();
+  assert.equal(activity.reports.at(-1), null);
+  activity.cleanup();
 });

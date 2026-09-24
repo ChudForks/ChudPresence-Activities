@@ -1,0 +1,39 @@
+{
+  "id": "67movies",
+  "name": "67Movies",
+  "description": "Show the movie or TV episode playing on 67Movies.",
+  "version": "1.0.3",
+  "apiVersion": 1,
+  "author": {
+    "name": "ChudPresence"
+  },
+  "category": "streaming",
+  "defaultMediaKind": "episode",
+  "aliases": ["67Movies", "Movies67"],
+  "tags": ["movies", "tv", "streaming"],
+  "serviceUrl": "https://67movies.st/",
+  "matches": [
+    "https://67movies.st/*",
+    "https://www.67movies.st/*"
+  ],
+  "network": [
+    "https://api.themoviedb.org/*"
+  ],
+  "entry": "activity.js",
+  "icon": "icon.png",
+  "presence": {
+    "kind": "video"
+  },
+  "settings": [
+    {
+      "id": "displayOrder",
+      "type": "select",
+      "label": "Display order",
+      "default": "series",
+      "options": [
+        { "label": "Series then episode", "value": "series" },
+        { "label": "Episode then series", "value": "episode" }
+      ]
+    }
+  ]
+}
