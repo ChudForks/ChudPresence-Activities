@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-25T18:39:30.205Z",
+  "generatedAt": "2026-09-25T20:23:05.629Z",
   "activities": [
     {
       "id": "67movies",
@@ -129,7 +129,7 @@
       "id": "hulu",
       "name": "Hulu",
       "description": "Show the movie or episode playing on Hulu.",
-      "version": "1.0.4",
+      "version": "1.0.7",
       "apiVersion": 1,
       "category": "streaming",
       "author": {
@@ -173,8 +173,8 @@
       ],
       "entry": "activities/hulu/activity.js",
       "metadata": "activities/hulu/metadata.json",
-      "sha256": "f11584945b5909eea28b736dc75944af5a972a0bff15407a585466edc9770af5",
-      "metadataSha256": "3d84e6fcb45f6c1cad187720c8683e06fde03e1983d04da67194521149943f7c",
+      "sha256": "d56be384419519f876924664e78ca0c1d6d4d99bdc7ee3a3148fdace70a081ca",
+      "metadataSha256": "b65ba05fc2aba7ce75069f9fba5b88e14e2803726054ded32de9dc81552b5bd3",
       "icon": "activities/hulu/icon.png",
       "iconSha256": "cd9c10f39d9ec5b25112bb5f01631b44905c3cbde97f1a064347201584031cc2"
     },

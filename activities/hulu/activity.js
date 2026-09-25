@@ -1,9 +1,15 @@
 let lastSerialized = null;
 let lastSentAt = 0;
 let activitySettings = { showArtwork: true };
+const EPISODE_DATA_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000, 30000];
 let episodeData = null;
 let episodeDataKey = '';
+let episodeDataSeriesUrl = '';
 let episodeDataRequestKey = '';
+let episodeDataRequestUrl = '';
+let episodeDataRequestToken = 0;
+let episodeDataAttempts = 0;
+let episodeDataNextRetryAt = 0;
 let episodeDataStatus = 'idle';
 
 function textOf(element) {
@@ -260,27 +266,90 @@ function episodeDataFromPage(html, episodeId) {
   };
 }
 
+function pageSeriesText(seriesUrl) {
+  // The extension bridge calls fetch from the service worker. A stored fetch
+  // reference throws "Illegal invocation" there, and the series page is
+  // same-origin with the watch page, so read it here first.
+  if (typeof fetch !== 'function') return Promise.reject(new Error('Page fetch is unavailable.'));
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = typeof setTimeout === 'function' ? setTimeout(() => controller?.abort(), 3000) : 0;
+  return fetch(seriesUrl, {
+    credentials: 'omit',
+    redirect: 'follow',
+    ...(controller ? { signal: controller.signal } : {}),
+  }).then((response) => {
+    if (!response?.ok || typeof response.text !== 'function') {
+      throw new Error('Hulu series page was not readable.');
+    }
+    return response.text();
+  }).finally(() => {
+    if (typeof clearTimeout === 'function') clearTimeout(timer);
+  });
+}
+
+function extensionSeriesText(seriesUrl) {
+  return ChudPresence.net.fetch(seriesUrl, { responseType: 'text', timeoutMs: 3000 }).then((response) => {
+    if (!response?.ok || typeof response.data !== 'string') {
+      throw new Error('Hulu series page request failed.');
+    }
+    return response.data;
+  });
+}
+
+function seriesPageText(seriesUrl, episodeId) {
+  return pageSeriesText(seriesUrl).then((html) => {
+    if (episodeDataFromPage(html, episodeId)) return html;
+    return extensionSeriesText(seriesUrl);
+  }, () => extensionSeriesText(seriesUrl));
+}
+
 function ensureEpisodeData(seriesUrl) {
   const episodeId = currentEpisodeId();
-  if (!episodeId || !seriesUrl || episodeDataKey === episodeId || episodeDataRequestKey === episodeId) return;
-  episodeDataRequestKey = episodeId;
-  episodeDataStatus = 'loading';
-  ChudPresence.net.fetch(seriesUrl, { responseType: 'text', timeoutMs: 3000 }).then((response) => {
-    if (episodeDataRequestKey !== episodeId) return;
+  if (!episodeId || !seriesUrl) return;
+  if (episodeDataKey !== episodeId || episodeDataSeriesUrl !== seriesUrl) {
+    episodeDataRequestToken += 1;
+    episodeDataRequestKey = '';
+    episodeDataRequestUrl = '';
+    episodeData = null;
     episodeDataKey = episodeId;
-    episodeData = response.ok ? episodeDataFromPage(response.data, episodeId) : null;
+    episodeDataSeriesUrl = seriesUrl;
+    episodeDataStatus = 'idle';
+    episodeDataAttempts = 0;
+    episodeDataNextRetryAt = 0;
+  }
+  if (episodeDataStatus === 'ready' || episodeDataRequestKey === episodeId ||
+      Date.now() < episodeDataNextRetryAt) return;
+  episodeDataRequestKey = episodeId;
+  episodeDataRequestUrl = seriesUrl;
+  const requestToken = ++episodeDataRequestToken;
+  episodeDataAttempts += 1;
+  episodeDataStatus = 'loading';
+  seriesPageText(seriesUrl, episodeId).then((html) => {
+    if (episodeDataRequestToken !== requestToken || episodeDataRequestKey !== episodeId ||
+        episodeDataRequestUrl !== seriesUrl) return;
+    episodeDataKey = episodeId;
+    episodeData = episodeDataFromPage(html, episodeId);
     episodeDataStatus = episodeData ? 'ready' : 'failed';
+    episodeDataNextRetryAt = episodeData ? 0 : Date.now() +
+      EPISODE_DATA_RETRY_DELAYS_MS[Math.min(episodeDataAttempts - 1, EPISODE_DATA_RETRY_DELAYS_MS.length - 1)];
     lastSerialized = null;
     tick();
   }).catch(() => {
-    if (episodeDataRequestKey !== episodeId) return;
+    if (episodeDataRequestToken !== requestToken || episodeDataRequestKey !== episodeId ||
+        episodeDataRequestUrl !== seriesUrl) return;
     episodeDataKey = episodeId;
     episodeData = null;
     episodeDataStatus = 'failed';
+    episodeDataNextRetryAt = Date.now() +
+      EPISODE_DATA_RETRY_DELAYS_MS[Math.min(episodeDataAttempts - 1, EPISODE_DATA_RETRY_DELAYS_MS.length - 1)];
     lastSerialized = null;
     tick();
   }).finally(() => {
-    if (episodeDataRequestKey === episodeId) episodeDataRequestKey = '';
+    if (episodeDataRequestToken === requestToken && episodeDataRequestKey === episodeId &&
+        episodeDataRequestUrl === seriesUrl) {
+      episodeDataRequestKey = '';
+      episodeDataRequestUrl = '';
+    }
   });
 }
 
@@ -360,7 +429,6 @@ function collect() {
   const seriesArtwork = pageArtwork('', seriesHint) || imageUrl(metaArtwork) ||
     imageUrl(structured?.image) || imageUrl(structured?.thumbnailUrl);
   ensureEpisodeData(huluSeriesPageUrl(seriesHint, seriesArtwork));
-  if (episodeDataStatus === 'loading' && episodeDataKey !== episodeId) return undefined;
   const remote = episodeDataKey === episodeId ? episodeData : null;
   const isEpisode = Boolean(remote) || player.isEpisode || /TVEpisode/i.test(structuredType) ||
     Boolean(structuredSeries || structuredEpisode || structuredSeason);
@@ -470,7 +538,12 @@ ChudPresence.navigation.onChange(() => {
   lastSentAt = 0;
   episodeData = null;
   episodeDataKey = '';
+  episodeDataSeriesUrl = '';
   episodeDataRequestKey = '';
+  episodeDataRequestUrl = '';
+  episodeDataRequestToken += 1;
+  episodeDataAttempts = 0;
+  episodeDataNextRetryAt = 0;
   episodeDataStatus = 'idle';
   observePlayer();
   tick();

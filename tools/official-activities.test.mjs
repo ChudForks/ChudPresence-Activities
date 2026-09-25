@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 async function runActivity(id, {
   url, title = '', metadata = null, selectors = {}, selectorLookup = null,
-  selectorAllLookup = null, frames = [], storage = {}, netFetch = null, pageExecute = null,
+  selectorAllLookup = null, frames = [], storage = {}, netFetch = null, pageFetch = null, pageExecute = null,
   mediaSessionState = 'playing',
 } = {}) {
   const source = await fs.readFile(path.join(root, 'activities', id, 'activity.js'), 'utf8');
@@ -94,6 +94,7 @@ async function runActivity(id, {
       getItem(key) { return Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null; },
     },
     navigator: { mediaSession: { playbackState: mediaSessionState, metadata: metadata?.mediaSession || metadata } },
+    ...(typeof pageFetch === 'function' ? { fetch: pageFetch } : {}),
   }, { filename: `${id}/activity.js` });
   return {
     reports,
@@ -215,6 +216,125 @@ test('Hulu reports promptly from watch-page metadata before the player DOM appea
   assert.equal(report.media.episode, 3);
   assert.equal(report.playback.duration, 1477);
   assert.match(report.artwork.large, new RegExp(`/artwork/${id}`));
+  activity.cleanup();
+});
+
+test('Hulu reads series metadata from the page before the extension fetch', async () => {
+  const id = 'd6c09933-2ab0-4a70-b33a-b7cb1e7b406e';
+  const seriesId = '02a3c8c0-4f1d-4610-bbb4-5b8e9468d7b1';
+  let extensionCalled = false;
+  const activity = await runActivity('hulu', {
+    url: `https://www.hulu.com/watch/${id}`,
+    selectors: {
+      'meta[property="og:title"], meta[name="og:title"]': {
+        content: 'BLEACH: Thousand-Year Blood War | Hulu',
+      },
+      'meta[property="og:image"], meta[name="og:image"]': {
+        content: `https://img3.hulu.com/user/v3/artwork/${seriesId}`,
+      },
+    },
+    pageFetch(requestUrl, options) {
+      assert.equal(requestUrl, `https://www.hulu.com/series/bleach-thousand-year-blood-war-${seriesId}`);
+      assert.equal(options.credentials, 'omit');
+      return Promise.resolve({
+        ok: true,
+        text: async () => `{"id":"${id}","type":"episode","name":"(Sub) WRATH AS A LIGHTNING","season":1,"number":5,"duration":1472,"seriesName":"BLEACH: Thousand-Year Blood War","artwork":{"horizontalHero":{"path":"https://img.hulu.com/user/v3/artwork/${id}?base_image=6be21b65"}}}`,
+      });
+    },
+    netFetch() {
+      extensionCalled = true;
+      return Promise.reject(new Error('extension fetch should not run'));
+    },
+  });
+  await flushActivity();
+  activity.advance();
+  const report = activity.reports.at(-1);
+  assert.equal(extensionCalled, false);
+  assert.equal(report.media.title, 'WRATH AS A LIGHTNING');
+  assert.equal(report.media.episode, 5);
+  assert.match(report.artwork.large, new RegExp(`/artwork/${id}`));
+  activity.cleanup();
+});
+
+test('Hulu falls back to the extension fetch when the page cannot read the series page', async () => {
+  const id = 'd8502813-7e68-4d8f-8660-31f28e29587b';
+  const seriesId = '02a3c8c0-4f1d-4610-bbb4-5b8e9468d7b1';
+  const activity = await runActivity('hulu', {
+    url: `https://www.hulu.com/watch/${id}`,
+    selectors: {
+      'meta[property="og:title"], meta[name="og:title"]': {
+        content: 'BLEACH: Thousand-Year Blood War | Hulu',
+      },
+      'meta[property="og:image"], meta[name="og:image"]': {
+        content: `https://img3.hulu.com/user/v3/artwork/${seriesId}`,
+      },
+    },
+    pageFetch() {
+      return Promise.reject(new TypeError('Page fetch failed.'));
+    },
+    netFetch(requestUrl) {
+      assert.equal(requestUrl, `https://www.hulu.com/series/bleach-thousand-year-blood-war-${seriesId}`);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        data: `{"id":"${id}","type":"episode","name":"(Sub) MARCH OF THE STARCROSS","season":1,"number":3,"duration":1477,"seriesName":"BLEACH: Thousand-Year Blood War","artwork":{"horizontalHero":{"path":"https://img3.hulu.com/user/v3/artwork/${id}?base_image=921908ce"}}}`,
+      });
+    },
+  });
+  await flushActivity();
+  activity.advance();
+  assert.equal(activity.reports.at(-1).media.title, 'MARCH OF THE STARCROSS');
+  activity.cleanup();
+});
+
+test('Hulu retries incomplete episode metadata with backoff', async () => {
+  const id = 'de474f6a-d168-41da-aa1c-2b66b8bac295';
+  const seriesId = '02a3c8c0-4f1d-4610-bbb4-5b8e9468d7b1';
+  let calls = 0;
+  const activity = await runActivity('hulu', {
+    url: `https://www.hulu.com/watch/${id}`,
+    metadata: {
+      '@type': 'TVEpisode',
+      name: 'THE FIRE',
+      episodeNumber: 6,
+      partOfSeries: { name: 'BLEACH: Thousand-Year Blood War' },
+      partOfSeason: { seasonNumber: 1 },
+    },
+    selectors: {
+      'meta[property="og:title"], meta[name="og:title"]': {
+        content: 'BLEACH: Thousand-Year Blood War | Hulu',
+      },
+      'meta[property="og:image"], meta[name="og:image"]': {
+        content: `https://img3.hulu.com/user/v3/artwork/${seriesId}`,
+      },
+    },
+    netFetch(requestUrl) {
+      calls += 1;
+      assert.equal(requestUrl, `https://www.hulu.com/series/bleach-thousand-year-blood-war-${seriesId}`);
+      const data = calls < 3
+        ? `{"id":"${id}","type":"episode","name":"(Sub) THE FIRE","season":1,"number":6,"duration":1476,"seriesName":"BLEACH: Thousand-Year Blood War"}`
+        : `{"id":"${id}","type":"episode","name":"(Sub) THE FIRE","season":1,"number":6,"duration":1476,"seriesName":"BLEACH: Thousand-Year Blood War","artwork":{"horizontalHero":{"path":"https://img3.hulu.com/user/v3/artwork/${id}?base_image=019f96a4"}}}`;
+      return Promise.resolve({ ok: true, status: 200, data });
+    },
+  });
+  await flushActivity();
+  assert.equal(calls, 1);
+  assert.match(activity.reports.at(-1).artwork.large, new RegExp(`/artwork/${seriesId}`));
+
+  activity.advance();
+  await flushActivity();
+  assert.equal(calls, 2);
+  activity.advance();
+  await flushActivity();
+  assert.equal(calls, 2, 'the failed lookup waits for its backoff before retrying');
+  activity.advance();
+  await flushActivity();
+  assert.equal(calls, 2);
+  activity.advance();
+  await flushActivity();
+  assert.equal(calls, 3);
+  assert.match(activity.reports.at(-1).artwork.large, new RegExp(`/artwork/${id}`));
+  assert.equal(activity.reports.at(-1).artwork.largeText, 'Season 1, Episode 6 • THE FIRE');
   activity.cleanup();
 });
 
