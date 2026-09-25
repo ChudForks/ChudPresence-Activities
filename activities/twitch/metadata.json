@@ -2,7 +2,7 @@
   "id": "twitch",
   "name": "Twitch",
   "description": "Show the live stream or recorded video playing on Twitch.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "apiVersion": 1,
   "author": { "name": "ChudPresence" },
   "category": "streaming",
@@ -13,5 +13,12 @@
   "matches": ["https://www.twitch.tv/*", "https://twitch.tv/*"],
   "entry": "activity.js",
   "icon": "icon.png",
-  "presence": { "kind": "video" }
+  "presence": { "kind": "video" },
+  "settingsUi": {
+    "statusLabels": {
+      "app": "Twitch",
+      "artist": "Streamer",
+      "track": "Stream title"
+    }
+  }
 }

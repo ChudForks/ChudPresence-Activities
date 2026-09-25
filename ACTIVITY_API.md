@@ -43,6 +43,26 @@ Optional discovery fields include `category`, searchable `aliases` and `tags`,
 when they also match `matches`. A package builds to one self-contained
 `activity.js` entry; `frames: "all"` applies it to each matching frame.
 
+An Activity can label the popup's three Status display choices with optional
+`settingsUi.statusLabels` metadata:
+
+```json
+{
+  "settingsUi": {
+    "statusLabels": {
+      "app": "YouTube Music",
+      "artist": "Artist",
+      "track": "Song title"
+    }
+  }
+}
+```
+
+Each key is optional. Missing labels keep the generic popup wording. Labels
+must be non-empty strings of at most 80 characters. They change only the
+choice text; the `app`, `artist`, and `track` preference values and Discord
+presence formatting remain the same.
+
 ## Report
 
 ```js

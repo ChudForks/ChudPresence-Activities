@@ -197,6 +197,22 @@ export function validateMetadata(metadata, directoryName, metadataText = JSON.st
        (metadata.presence.kind !== undefined && !activityKinds.has(metadata.presence.kind)))) {
     throw new Error(`${directoryName}: presence kind is invalid.`);
   }
+  if (metadata.settingsUi !== undefined) {
+    const ui = metadata.settingsUi;
+    if (!ui || typeof ui !== 'object' || Array.isArray(ui) ||
+        Object.keys(ui).some((key) => key !== 'statusLabels')) {
+      throw new Error(`${directoryName}: settingsUi may contain only statusLabels.`);
+    }
+    if (ui.statusLabels !== undefined) {
+      const labels = ui.statusLabels;
+      if (!labels || typeof labels !== 'object' || Array.isArray(labels) ||
+          Object.entries(labels).some(([key, value]) =>
+            !['app', 'artist', 'track'].includes(key) || typeof value !== 'string' ||
+            !value.trim() || value.length > 80)) {
+        throw new Error(`${directoryName}: settingsUi.statusLabels must contain only app, artist, and track labels up to 80 characters.`);
+      }
+    }
+  }
   validateSettings(metadata.settings, directoryName);
   for (const field of ['homepage', 'repository', 'serviceUrl']) {
     if (metadata[field] !== undefined) {
@@ -231,7 +247,7 @@ async function readPackage(directoryName) {
     ...(metadata.minExtensionVersion ? { minExtensionVersion: metadata.minExtensionVersion } : {}),
     ...(metadata.category ? { category: metadata.category } : {}),
     ...(metadata.author ? { author: metadata.author } : {}),
-    ...Object.fromEntries(['aliases', 'tags', 'excludeMatches', 'contributors', 'serviceUrl', 'homepage', 'repository', 'presence', 'defaultMediaKind', 'frames', 'network', 'settings']
+    ...Object.fromEntries(['aliases', 'tags', 'excludeMatches', 'contributors', 'serviceUrl', 'homepage', 'repository', 'presence', 'defaultMediaKind', 'frames', 'network', 'settings', 'settingsUi']
       .filter((field) => metadata[field] !== undefined)
       .map((field) => [field, metadata[field]])),
     matches: metadata.matches,

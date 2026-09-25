@@ -2,7 +2,7 @@
   "id": "youtube-music",
   "name": "YouTube Music",
   "description": "Show the song, artist, and playback progress from YouTube Music.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "apiVersion": 1,
   "author": {
     "name": "ChudPresence"
@@ -19,6 +19,13 @@
   "icon": "icon.png",
   "presence": {
     "kind": "music"
+  },
+  "settingsUi": {
+    "statusLabels": {
+      "app": "YouTube Music",
+      "artist": "Artist",
+      "track": "Song title"
+    }
   },
   "settings": [
     {

@@ -325,6 +325,36 @@
         ]
       }
     },
+    "settingsUi": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "statusLabels": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "app": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "\\S"
+            },
+            "artist": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "\\S"
+            },
+            "track": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "\\S"
+            }
+          }
+        }
+      }
+    },
     "repository": {
       "type": "string",
       "format": "uri",

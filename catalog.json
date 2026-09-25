@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-24T21:16:04.054Z",
+  "generatedAt": "2026-09-24T21:48:31.425Z",
   "activities": [
     {
       "id": "67movies",
@@ -62,7 +62,7 @@
       "id": "crunchyroll",
       "name": "Crunchyroll",
       "description": "Show the anime episode or movie playing on Crunchyroll.",
-      "version": "1.0.7",
+      "version": "1.0.8",
       "apiVersion": 1,
       "category": "streaming",
       "author": {
@@ -106,6 +106,13 @@
           "default": true
         }
       ],
+      "settingsUi": {
+        "statusLabels": {
+          "app": "Crunchyroll",
+          "artist": "Episode / series",
+          "track": "Series / episode"
+        }
+      },
       "matches": [
         "https://www.crunchyroll.com/*",
         "https://crunchyroll.com/*",
@@ -114,7 +121,7 @@
       "entry": "activities/crunchyroll/activity.js",
       "metadata": "activities/crunchyroll/metadata.json",
       "sha256": "ced9764328e44d67cfc2c3fe3abcf739decabc5f5a880be51a8aa150def41af2",
-      "metadataSha256": "d9a5c881e7c6b16011eebc424975e9f53192d66f1f8f8d10bd064dcb4ae0c508",
+      "metadataSha256": "174ec7463a98c05a6964d72149fc19be0605fec505f716571e1186be208fd166",
       "icon": "activities/crunchyroll/icon.png",
       "iconSha256": "c82119ef8bdc7d60867e69d38291efb58737a5a4248154e6d14fb6ab4a19761f"
     },
@@ -122,7 +129,7 @@
       "id": "kick",
       "name": "Kick",
       "description": "Show the live stream or video playing on Kick.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "apiVersion": 1,
       "category": "streaming",
       "author": {
@@ -141,6 +148,13 @@
         "kind": "video"
       },
       "defaultMediaKind": "stream",
+      "settingsUi": {
+        "statusLabels": {
+          "app": "Kick",
+          "artist": "Streamer",
+          "track": "Stream title"
+        }
+      },
       "matches": [
         "https://kick.com/*",
         "https://www.kick.com/*"
@@ -148,7 +162,7 @@
       "entry": "activities/kick/activity.js",
       "metadata": "activities/kick/metadata.json",
       "sha256": "adcb58b8c2750e38aec8a496181699df1a7e0e7b1a987dbf211e2b20bb42dd3a",
-      "metadataSha256": "f7c9b1dc9668929245a545ec9886dff91f31c89d455bc2066eeb7c9ff596d9c5",
+      "metadataSha256": "11c22e444935eefdee3574fc331ac0c9af32ac7a6ba50a709feed4747c09452a",
       "icon": "activities/kick/icon.png",
       "iconSha256": "da4eab2da290778ef9f8af74256c257f04f29f1e458388e6ccdf882bbb8529ca"
     },
@@ -156,7 +170,7 @@
       "id": "twitch",
       "name": "Twitch",
       "description": "Show the live stream or recorded video playing on Twitch.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "apiVersion": 1,
       "category": "streaming",
       "author": {
@@ -175,6 +189,13 @@
         "kind": "video"
       },
       "defaultMediaKind": "stream",
+      "settingsUi": {
+        "statusLabels": {
+          "app": "Twitch",
+          "artist": "Streamer",
+          "track": "Stream title"
+        }
+      },
       "matches": [
         "https://www.twitch.tv/*",
         "https://twitch.tv/*"
@@ -182,7 +203,7 @@
       "entry": "activities/twitch/activity.js",
       "metadata": "activities/twitch/metadata.json",
       "sha256": "63236f6f2c9e5a6d6755891a2485307db7a98181de7fb5ac8308733cbee9cae0",
-      "metadataSha256": "b4f536b875d4c6f22a0f5683ffc607b13d62170ed0ce2094bc3d6d3a9dbf4080",
+      "metadataSha256": "2aef177c2dda40580b34a53e6bad3b4a00e91b19d44ac1cf4568968c4ee25aab",
       "icon": "activities/twitch/icon.png",
       "iconSha256": "1d44a9af3da79a72543fd48e5d8466c54409a6e15d5b97944619a4e37184bca6"
     },
@@ -190,7 +211,7 @@
       "id": "youtube",
       "name": "YouTube",
       "description": "Show YouTube videos, Shorts, and live streams as an Activity.",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "apiVersion": 1,
       "category": "video",
       "author": {
@@ -211,6 +232,13 @@
         "kind": "video"
       },
       "defaultMediaKind": "video",
+      "settingsUi": {
+        "statusLabels": {
+          "app": "YouTube",
+          "artist": "Creator",
+          "track": "Video title"
+        }
+      },
       "matches": [
         "https://www.youtube.com/*",
         "https://youtube.com/*"
@@ -218,7 +246,7 @@
       "entry": "activities/youtube/activity.js",
       "metadata": "activities/youtube/metadata.json",
       "sha256": "80fef5def3ae85547be107865cfb53ed0422d0d4fa536297a0b043d0ad7c3640",
-      "metadataSha256": "7425fc80532ec02b99f17dbbcec710dade4e7dd127116063172463d358f6b225",
+      "metadataSha256": "ed9de876273c3d0d0f580e888a633e51bca20e9ab423c9aabf0863dc456d4662",
       "icon": "activities/youtube/icon.png",
       "iconSha256": "fc098ac5d0282c91cb26cf25d63dcd598c515d41986a4afa13f6a6d1d7d73268"
     },
@@ -226,7 +254,7 @@
       "id": "youtube-music",
       "name": "YouTube Music",
       "description": "Show the song, artist, and playback progress from YouTube Music.",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "apiVersion": 1,
       "category": "music",
       "author": {
@@ -275,13 +303,20 @@
           "default": true
         }
       ],
+      "settingsUi": {
+        "statusLabels": {
+          "app": "YouTube Music",
+          "artist": "Artist",
+          "track": "Song title"
+        }
+      },
       "matches": [
         "https://music.youtube.com/*"
       ],
       "entry": "activities/youtube-music/activity.js",
       "metadata": "activities/youtube-music/metadata.json",
       "sha256": "ec65b51b69e718af03639ac06e0123a6a25654181b6069f51a04970b7d392d61",
-      "metadataSha256": "9e515a00b50b5fcf84e9b25a7953762e79343b98a49cee8f58f8013f41fbe2b1",
+      "metadataSha256": "52ef49cd7a9c8f43ecc5ae32d7ce4cf1f9a99edf42cd8b147469f3421da59791",
       "icon": "activities/youtube-music/icon.png",
       "iconSha256": "ca92012f8317a578b68a6d21011482ef9ebcba334fc0fe9a4caa7c092e47ac1e"
     }

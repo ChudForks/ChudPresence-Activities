@@ -2,7 +2,7 @@
   "id": "youtube",
   "name": "YouTube",
   "description": "Show YouTube videos, Shorts, and live streams as an Activity.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "apiVersion": 1,
   "author": { "name": "ChudPresence" },
   "category": "video",
@@ -13,5 +13,12 @@
   "matches": ["https://www.youtube.com/*", "https://youtube.com/*"],
   "entry": "activity.js",
   "icon": "icon.png",
-  "presence": { "kind": "video" }
+  "presence": { "kind": "video" },
+  "settingsUi": {
+    "statusLabels": {
+      "app": "YouTube",
+      "artist": "Creator",
+      "track": "Video title"
+    }
+  }
 }

@@ -2,7 +2,7 @@
   "id": "crunchyroll",
   "name": "Crunchyroll",
   "description": "Show the anime episode or movie playing on Crunchyroll.",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "apiVersion": 1,
   "author": {
     "name": "ChudPresence"
@@ -21,6 +21,13 @@
   "icon": "icon.png",
   "presence": {
     "kind": "video"
+  },
+  "settingsUi": {
+    "statusLabels": {
+      "app": "Crunchyroll",
+      "artist": "Episode / series",
+      "track": "Series / episode"
+    }
   },
   "settings": [
     {

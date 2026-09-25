@@ -54,6 +54,13 @@ export type ActivityMetadata = {
   "max": number;
   "step"?: number;
 }>;
+  "settingsUi"?: {
+  "statusLabels"?: {
+  "app"?: string;
+  "artist"?: string;
+  "track"?: string;
+};
+};
   "repository"?: string;
   "homepage"?: string;
   "serviceUrl"?: string;

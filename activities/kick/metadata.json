@@ -2,7 +2,7 @@
   "id": "kick",
   "name": "Kick",
   "description": "Show the live stream or video playing on Kick.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "apiVersion": 1,
   "author": { "name": "ChudPresence" },
   "category": "streaming",
@@ -13,5 +13,12 @@
   "matches": ["https://kick.com/*", "https://www.kick.com/*"],
   "entry": "activity.js",
   "icon": "icon.png",
-  "presence": { "kind": "video" }
+  "presence": { "kind": "video" },
+  "settingsUi": {
+    "statusLabels": {
+      "app": "Kick",
+      "artist": "Streamer",
+      "track": "Stream title"
+    }
+  }
 }
