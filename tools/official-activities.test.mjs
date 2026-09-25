@@ -9,7 +9,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 async function runActivity(id, {
   url, title = '', metadata = null, selectors = {}, selectorLookup = null,
-  frames = [], storage = {}, netFetch = null, pageExecute = null,
+  selectorAllLookup = null, frames = [], storage = {}, netFetch = null, pageExecute = null,
+  mediaSessionState = 'playing',
 } = {}) {
   const source = await fs.readFile(path.join(root, 'activities', id, 'activity.js'), 'utf8');
   const reports = [];
@@ -32,6 +33,8 @@ async function runActivity(id, {
         return [{ textContent: JSON.stringify(metadata) }];
       }
       if (selector === 'iframe') return frames;
+      const found = selectorAllLookup?.(selector);
+      if (found) return found;
       return [];
     },
     addEventListener() {},
@@ -90,7 +93,7 @@ async function runActivity(id, {
     localStorage: {
       getItem(key) { return Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null; },
     },
-    navigator: { mediaSession: { playbackState: 'playing', metadata: metadata?.mediaSession || metadata } },
+    navigator: { mediaSession: { playbackState: mediaSessionState, metadata: metadata?.mediaSession || metadata } },
   }, { filename: `${id}/activity.js` });
   return {
     reports,
@@ -108,6 +111,112 @@ async function runActivity(id, {
     storage: store,
   };
 }
+
+test('Hulu reads dedicated player metadata, artwork, and timeline values', async () => {
+  const video = { currentTime: 1259, duration: Infinity, paused: false, ended: false, playbackRate: 1 };
+  const timeline = {
+    getAttribute(name) {
+      return { 'aria-valuenow': '1259', 'aria-valuemax': '1476' }[name] || null;
+    },
+  };
+  const label = {
+    getAttribute(name) {
+      return name === 'aria-label'
+        ? 'You are watching - BLEACH: Thousand-Year Blood War S1 E2 (Sub) FOUNDATION STONES TV14 For more actions, you can press the space key.'
+        : null;
+    },
+  };
+  const playerSelectors = {
+    video,
+    '[data-testid="player-metadata"] .PlayerMetadata__titleText': { textContent: 'BLEACH: Thousand-Year Blood War' },
+    '[data-testid="player-metadata"] .PlayerMetadata__seasonEpisodeText': { textContent: 'S1 E2' },
+    '[data-testid="player-metadata"] .PlayerMetadata__subTitleText': { textContent: '(Sub) FOUNDATION STONES' },
+    '[aria-label="Timeline"][aria-valuenow], .Timeline__slider[aria-valuenow]': timeline,
+  };
+  const root = {
+    querySelector(selector) { return playerSelectors[selector] || null; },
+    querySelectorAll(selector) { return selector === '[aria-label]' ? [label] : []; },
+  };
+  const seriesId = '02a3c8c0-4f1d-4610-bbb4-5b8e9468d7b1';
+  const cover = {
+    alt: 'Cover art for BLEACH: Thousand-Year Blood War.',
+    currentSrc: `https://img3.hulu.com/user/v3/artwork/${seriesId}`,
+  };
+  const episodeArtwork = 'https://img3.hulu.com/user/v3/artwork/f5d452e7-424d-43b4-ab7b-4dd1c7373dff' +
+    '?base_image_bucket_name=image_manager\\u0026base_image=921908ce-7fc2-4fd3-8f46-d3366f4e5f87';
+  const activity = await runActivity('hulu', {
+    url: 'https://www.hulu.com/watch/f5d452e7-424d-43b4-ab7b-4dd1c7373dff',
+    selectors: { '#web-player-app': root },
+    selectorAllLookup(selector) {
+      if (selector === 'img') return [cover];
+      return null;
+    },
+    netFetch(requestUrl, options) {
+      assert.equal(requestUrl,
+        `https://www.hulu.com/series/bleach-thousand-year-blood-war-${seriesId}`);
+      assert.equal(options.responseType, 'text');
+      assert.equal(options.timeoutMs, 3000);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        data: `{"id":"f5d452e7-424d-43b4-ab7b-4dd1c7373dff","type":"episode","name":"(Sub) FOUNDATION STONES","season":1,"number":2,"duration":1476,"seriesName":"BLEACH: Thousand-Year Blood War","artwork":{"horizontalHero":{"path":"${episodeArtwork}"}}}`,
+      });
+    },
+  });
+  await flushActivity();
+  activity.advance();
+  const report = activity.reports.at(-1);
+  assert.equal(report.kind, 'episode');
+  assert.equal(report.media.title, 'FOUNDATION STONES');
+  assert.equal(report.media.series, 'BLEACH: Thousand-Year Blood War');
+  assert.equal(report.media.season, 1);
+  assert.equal(report.media.episode, 2);
+  assert.equal(report.display.details, 'FOUNDATION STONES');
+  assert.equal(report.display.state, 'BLEACH: Thousand-Year Blood War');
+  assert.equal(report.playback.state, 'playing');
+  assert.equal(report.playback.position, 1259);
+  assert.equal(report.playback.duration, 1476);
+  assert.match(report.artwork.large, /^https:\/\/img3\.hulu\.com\/user\/v3\/artwork\/f5d452e7/);
+  assert.match(report.artwork.large, /operations=/);
+  assert.notEqual(report.artwork.large, cover.currentSrc);
+  assert.equal(report.artwork.largeText, 'Season 1, Episode 2 • FOUNDATION STONES');
+  activity.cleanup();
+});
+
+test('Hulu reports promptly from watch-page metadata before the player DOM appears', async () => {
+  const id = 'd8502813-7e68-4d8f-8660-31f28e29587b';
+  const seriesId = '02a3c8c0-4f1d-4610-bbb4-5b8e9468d7b1';
+  const activity = await runActivity('hulu', {
+    url: `https://www.hulu.com/watch/${id}`,
+    selectors: {
+      'meta[property="og:title"], meta[name="og:title"]': {
+        content: 'BLEACH: Thousand-Year Blood War | Hulu',
+      },
+      'meta[property="og:image"], meta[name="og:image"]': {
+        content: `https://img3.hulu.com/user/v3/artwork/${seriesId}`,
+      },
+    },
+    netFetch(requestUrl) {
+      assert.equal(requestUrl,
+        `https://www.hulu.com/series/bleach-thousand-year-blood-war-${seriesId}`);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        data: `{"id":"${id}","type":"episode","name":"(Sub) MARCH OF THE STARCROSS","season":1,"number":3,"duration":1477,"seriesName":"BLEACH: Thousand-Year Blood War","artwork":{"horizontalHero":{"path":"https://img3.hulu.com/user/v3/artwork/${id}?base_image_bucket_name=image_manager\\u0026base_image=921908ce-7fc2-4fd3-8f46-d3366f4e5f87"}}}`,
+      });
+    },
+  });
+  await flushActivity();
+  activity.advance();
+  const report = activity.reports.at(-1);
+  assert.equal(report.media.title, 'MARCH OF THE STARCROSS');
+  assert.equal(report.media.series, 'BLEACH: Thousand-Year Blood War');
+  assert.equal(report.media.season, 1);
+  assert.equal(report.media.episode, 3);
+  assert.equal(report.playback.duration, 1477);
+  assert.match(report.artwork.large, new RegExp(`/artwork/${id}`));
+  activity.cleanup();
+});
 
 async function flushActivity() {
   for (let i = 0; i < 8; i += 1) await Promise.resolve();

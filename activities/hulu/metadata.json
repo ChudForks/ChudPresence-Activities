@@ -1,0 +1,43 @@
+{
+  "id": "hulu",
+  "name": "Hulu",
+  "description": "Show the movie or episode playing on Hulu.",
+  "version": "1.0.4",
+  "apiVersion": 1,
+  "author": {
+    "name": "ChudPresence"
+  },
+  "category": "streaming",
+  "defaultMediaKind": "episode",
+  "aliases": ["Hulu"],
+  "tags": ["movies", "tv", "streaming"],
+  "serviceUrl": "https://www.hulu.com/",
+  "matches": [
+    "https://www.hulu.com/watch/*",
+    "https://hulu.com/watch/*"
+  ],
+  "network": [
+    "https://www.hulu.com/series/*",
+    "https://hulu.com/series/*"
+  ],
+  "entry": "activity.js",
+  "icon": "icon.png",
+  "presence": {
+    "kind": "video"
+  },
+  "settingsUi": {
+    "statusLabels": {
+      "app": "Hulu",
+      "artist": "Series",
+      "track": "Episode"
+    }
+  },
+  "settings": [
+    {
+      "id": "showArtwork",
+      "type": "boolean",
+      "label": "Show artwork",
+      "default": true
+    }
+  ]
+}
