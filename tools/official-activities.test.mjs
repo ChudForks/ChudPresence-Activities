@@ -129,9 +129,9 @@ test('Hulu reads dedicated player metadata, artwork, and timeline values', async
   };
   const playerSelectors = {
     video,
-    '[data-testid="player-metadata"] .PlayerMetadata__titleText': { textContent: 'BLEACH: Thousand-Year Blood War' },
-    '[data-testid="player-metadata"] .PlayerMetadata__seasonEpisodeText': { textContent: 'S1 E2' },
-    '[data-testid="player-metadata"] .PlayerMetadata__subTitleText': { textContent: '(Sub) FOUNDATION STONES' },
+    '.PlayerMetadata__titleText': { textContent: 'BLEACH: Thousand-Year Blood War' },
+    '.PlayerMetadata__seasonEpisodeText': { textContent: 'S1 E2' },
+    '.PlayerMetadata__subTitleText': { textContent: '(Sub) FOUNDATION STONES' },
     '[aria-label="Timeline"][aria-valuenow], .Timeline__slider[aria-valuenow]': timeline,
   };
   const root = {
@@ -181,6 +181,63 @@ test('Hulu reads dedicated player metadata, artwork, and timeline values', async
   assert.match(report.artwork.large, /operations=/);
   assert.notEqual(report.artwork.large, cover.currentSrc);
   assert.equal(report.artwork.largeText, 'Season 1, Episode 2 • FOUNDATION STONES');
+  activity.cleanup();
+});
+
+test('Hulu movie ignores rating guidance and Up Next episode metadata', async () => {
+  const video = { currentTime: 118, duration: 6404, paused: false, ended: false, playbackRate: 1 };
+  const onNow = {
+    querySelector(selector) {
+      return selector === '.PlayerMetadata__titleText' ? { textContent: 'Tropic Thunder' } : null;
+    },
+  };
+  const label = {
+    getAttribute(name) {
+      return name === 'aria-label'
+        ? 'You are watching   -  Tropic Thunder\n      R  For more actions, you can press the space key\n' +
+          'to expand the hidden region. Once the hidden region been expand, you can press the tab key for more details'
+        : null;
+    },
+    closest() { return onNow; },
+  };
+  const root = {
+    querySelector(selector) {
+      if (selector === 'video') return video;
+      if (selector === '[data-testid="player-metadata"].OnNowMetadata') return onNow;
+      if (selector === '.PlayerMetadata__seasonEpisodeText') return { textContent: 'S1 E6' };
+      if (selector === '.PlayerMetadata__titleText') return { textContent: 'BLEACH: Thousand-Year Blood War' };
+      return null;
+    },
+    querySelectorAll(selector) { return selector === '[aria-label]' ? [label] : []; },
+  };
+  const activity = await runActivity('hulu', {
+    url: 'https://www.hulu.com/watch/73ed908e-b3b0-4033-8937-1d91b1a12e94',
+    selectors: { '#web-player-app': root },
+    pageFetch(requestUrl, options) {
+      assert.equal(requestUrl, 'https://www.hulu.com/movie/73ed908e-b3b0-4033-8937-1d91b1a12e94');
+      assert.equal(options.credentials, 'omit');
+      return Promise.resolve({
+        ok: true,
+        text: async () => '<meta property="og:image" content="https://img.hulu.com/user/v3/artwork/' +
+          '73ed908e-b3b0-4033-8937-1d91b1a12e94?base_image_bucket_name=image_manager&amp;' +
+          'base_image=21498ad6-d19f-461d-90f8-1d9266608b19&amp;size=1200x630&amp;format=webp"/>',
+      });
+    },
+  });
+  await flushActivity();
+  activity.advance();
+  const report = activity.reports.at(-1);
+  assert.equal(report.kind, 'movie');
+  assert.equal(report.media.title, 'Tropic Thunder');
+  assert.equal(report.media.series, undefined);
+  assert.equal(report.media.season, undefined);
+  assert.equal(report.media.episode, undefined);
+  assert.equal(report.display, undefined);
+  assert.match(report.artwork.large,
+    /^https:\/\/img\.hulu\.com\/user\/v3\/artwork\/73ed908e-b3b0-4033-8937-1d91b1a12e94\?/);
+  assert.match(report.artwork.large, /base_image=21498ad6-d19f-461d-90f8-1d9266608b19/);
+  assert.match(report.artwork.large, /operations=/);
+  assert.equal(report.artwork.largeText, 'Tropic Thunder');
   activity.cleanup();
 });
 
@@ -387,6 +444,9 @@ test('YouTube Music package reports a song and applies V1 presentation settings'
   assert.equal(activity.reports.at(-1).kind, 'song');
   assert.equal(activity.reports.at(-1).media.artist, 'Artist');
   assert.equal(activity.reports.at(-1).display.state, 'Artist');
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  assert.equal(activity.reports.at(-1).artwork.large, 'https://example.com/cover.png');
+  assert.equal(activity.reports.at(-1).artwork.small, undefined);
   assert.equal(activity.reports.at(-1).buttons[0].url, 'https://music.youtube.com/watch?v=abcdefghijk');
   activity.settings({ id: 'displayMode', value: 'album',
     settings: { displayMode: 'album', showArtwork: false } });
@@ -402,6 +462,39 @@ test('YouTube Music package reports a song and applies V1 presentation settings'
   assert.equal(activity.reports.at(-1), null);
   activity.cleanup();
   assert.equal(activity.reports.at(-1), null);
+});
+
+test('YouTube Music adds a pause badge to album art while paused', async () => {
+  const session = {
+    title: 'Track', artist: 'Artist', album: 'Album',
+    artwork: [{ src: 'https://example.com/cover.png', sizes: '512x512' }],
+  };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    mediaSessionState: 'paused',
+    metadata: { mediaSession: session },
+  });
+  const paused = activity.reports.at(-1);
+  assert.equal(paused.playback.state, 'paused');
+  assert.equal(paused.artwork.large, 'https://example.com/cover.png');
+  assert.equal(paused.artwork.smallText, 'Paused');
+  assert.equal(
+    paused.artwork.small,
+    'https://raw.githubusercontent.com/ChudForks/ChudPresence-Activities/main/presence-assets/pause.png',
+  );
+  const pauseIcon = await fs.readFile(path.join(root, 'presence-assets/pause.png'));
+  assert.equal(pauseIcon.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+
+  session.artwork = [];
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  assert.equal(activity.reports.at(-1).artwork.small, undefined);
+
+  activity.settings({ id: 'showArtwork', value: false, settings: { showArtwork: false } });
+  session.artwork = [{ src: 'https://example.com/cover.png', sizes: '512x512' }];
+  activity.advance();
+  assert.deepEqual(Object.keys(activity.reports.at(-1).artwork), []);
+  activity.cleanup();
 });
 
 test('YouTube package reports a Short through the page bridge and clears advertisements', async () => {

@@ -15,6 +15,7 @@ catalog.json
 activities/<activity-id>/metadata.json
 activities/<activity-id>/activity.js
 activities/<activity-id>/icon.png (optional)
+presence-assets/
 schemas/
 tools/build-catalog.mjs
 tools/generate-api-contract.mjs
@@ -25,6 +26,9 @@ package.json
 .github/workflows/validate.yml
 ```
 
+`presence-assets/` holds shared Discord images, such as play and pause badges.
+Activities reference those raw URLs. They are not downloaded with an Activity
+package.
 The catalog is generated from package metadata and includes SHA-256 hashes for
 metadata, script source, and optional icons. During discovery the extension
 resolves the current Git commit, then fetches the catalog and selected package

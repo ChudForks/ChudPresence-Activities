@@ -1,6 +1,7 @@
 let lastSerialized = null;
 let lastSentAt = 0;
 let activitySettings = { showAlbum: true, showArtwork: true, displayMode: 'artist' };
+const PAUSE_ARTWORK_URL = 'https://raw.githubusercontent.com/ChudForks/ChudPresence-Activities/main/presence-assets/pause.png';
 
 function textOf(node) {
   return (node?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -121,12 +122,13 @@ function collect() {
   const buttons = [{ label: 'Play on YouTube Music', url }];
   const searchUrl = artistSearchUrl(artist);
   if (searchUrl) buttons.push({ label: 'Search artist', url: searchUrl });
+  const playing = Boolean(mediaSnapshot?.playing || isPlaying(video));
   return {
     kind: 'song',
     media: { title, ...(artist ? { artist } : {}), ...(album ? { album } : {}) },
     display: { details: title, state: displayArtist || '' },
     playback: {
-      state: mediaSnapshot?.playing || isPlaying(video) ? 'playing' : 'paused',
+      state: playing ? 'playing' : 'paused',
       position,
       duration,
       live: false,
@@ -135,6 +137,7 @@ function collect() {
     artwork: activitySettings.showArtwork ? {
       ...(artwork ? { large: artwork } : {}),
       ...(album ? { largeText: album } : {}),
+      ...(!playing && artwork ? { small: PAUSE_ARTWORK_URL, smallText: 'Paused' } : {}),
     } : {},
     buttons,
   };

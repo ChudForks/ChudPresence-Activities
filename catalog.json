@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-25T20:23:05.629Z",
+  "generatedAt": "2026-09-26T18:12:53.428Z",
   "activities": [
     {
       "id": "67movies",
@@ -129,7 +129,7 @@
       "id": "hulu",
       "name": "Hulu",
       "description": "Show the movie or episode playing on Hulu.",
-      "version": "1.0.7",
+      "version": "1.0.9",
       "apiVersion": 1,
       "category": "streaming",
       "author": {
@@ -150,7 +150,9 @@
       "defaultMediaKind": "episode",
       "network": [
         "https://www.hulu.com/series/*",
-        "https://hulu.com/series/*"
+        "https://hulu.com/series/*",
+        "https://www.hulu.com/movie/*",
+        "https://hulu.com/movie/*"
       ],
       "settings": [
         {
@@ -173,8 +175,8 @@
       ],
       "entry": "activities/hulu/activity.js",
       "metadata": "activities/hulu/metadata.json",
-      "sha256": "d56be384419519f876924664e78ca0c1d6d4d99bdc7ee3a3148fdace70a081ca",
-      "metadataSha256": "b65ba05fc2aba7ce75069f9fba5b88e14e2803726054ded32de9dc81552b5bd3",
+      "sha256": "c4f6c86ab94970c7faf893ec4ca2c348dcf57586e05fd83203f3ba32016993f8",
+      "metadataSha256": "f900f364b957261955772b39acfa28fa6420993ff78f9e5f8270a5d4fa4275ed",
       "icon": "activities/hulu/icon.png",
       "iconSha256": "cd9c10f39d9ec5b25112bb5f01631b44905c3cbde97f1a064347201584031cc2"
     },
@@ -307,7 +309,7 @@
       "id": "youtube-music",
       "name": "YouTube Music",
       "description": "Show the song, artist, and playback progress from YouTube Music.",
-      "version": "1.0.5",
+      "version": "1.0.7",
       "apiVersion": 1,
       "category": "music",
       "author": {
@@ -368,8 +370,8 @@
       ],
       "entry": "activities/youtube-music/activity.js",
       "metadata": "activities/youtube-music/metadata.json",
-      "sha256": "ec65b51b69e718af03639ac06e0123a6a25654181b6069f51a04970b7d392d61",
-      "metadataSha256": "52ef49cd7a9c8f43ecc5ae32d7ce4cf1f9a99edf42cd8b147469f3421da59791",
+      "sha256": "cbb0ba1506616cfe6e375565bba8286c3cbf0df30653fb2c06abfcc4dd13c785",
+      "metadataSha256": "03b2e68f27e981657866e03996ef0fa403efcf9324588504df2eb70f32ec27bf",
       "icon": "activities/youtube-music/icon.png",
       "iconSha256": "ca92012f8317a578b68a6d21011482ef9ebcba334fc0fe9a4caa7c092e47ac1e"
     }

@@ -2,7 +2,7 @@
   "id": "hulu",
   "name": "Hulu",
   "description": "Show the movie or episode playing on Hulu.",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "apiVersion": 1,
   "author": {
     "name": "ChudPresence"
@@ -18,7 +18,9 @@
   ],
   "network": [
     "https://www.hulu.com/series/*",
-    "https://hulu.com/series/*"
+    "https://hulu.com/series/*",
+    "https://www.hulu.com/movie/*",
+    "https://hulu.com/movie/*"
   ],
   "entry": "activity.js",
   "icon": "icon.png",

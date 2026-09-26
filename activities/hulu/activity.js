@@ -11,6 +11,13 @@ let episodeDataRequestToken = 0;
 let episodeDataAttempts = 0;
 let episodeDataNextRetryAt = 0;
 let episodeDataStatus = 'idle';
+let movieArtwork = '';
+let movieArtworkKey = '';
+let movieArtworkRequestKey = '';
+let movieArtworkRequestToken = 0;
+let movieArtworkAttempts = 0;
+let movieArtworkNextRetryAt = 0;
+let movieArtworkStatus = 'idle';
 
 function textOf(element) {
   return String(element?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -82,21 +89,30 @@ function jsonLd() {
   }) || items[0] || null;
 }
 
-function currentPlayerLabel() {
-  const root = document.querySelector('#web-player-app') || document;
+function currentPlayerInfo(root) {
+  const onNow = root.querySelector('[data-testid="player-metadata"].OnNowMetadata');
   for (const element of root.querySelectorAll('[aria-label]')) {
     const label = element.getAttribute('aria-label') || '';
-    if (/^you are watching\b/i.test(label)) return label;
+    if (/^you are watching\b/i.test(label)) {
+      return {
+        label,
+        metadataRoot: element.closest?.('[data-testid="player-metadata"]') || onNow || root,
+      };
+    }
   }
-  return firstText([
-    '[data-testid="current-media-info"]',
-    '[class*="current-media-info"]',
-    '[class*="currentMediaInfo"]',
-  ], root);
+  return {
+    label: firstText([
+      '[data-testid="current-media-info"]',
+      '[class*="current-media-info"]',
+      '[class*="currentMediaInfo"]',
+    ], root),
+    metadataRoot: onNow,
+  };
 }
 
 function cleanEpisodeTitle(value) {
   return String(value || '')
+    .replace(/\s+/g, ' ')
     .replace(/^\((?:sub|dub)\)\s*/i, '')
     .replace(/\s+For more actions,.*$/i, '')
     .replace(/\s*[•·]\s*(?:TV\s?-?(?:Y7|Y|G|PG|14|MA)|PG-?13|NC-17|R|G|PG)\s*$/i, '')
@@ -107,6 +123,7 @@ function cleanEpisodeTitle(value) {
 
 function cleanPlayerLabel(value) {
   return String(value || '')
+    .replace(/\s+/g, ' ')
     .replace(/^You are watching\s*[-:]\s*/i, '')
     .replace(/\s+For more actions,.*$/i, '')
     .replace(/\s*[•·]\s*(?:TV\s?-?(?:Y7|Y|G|PG|14|MA)|PG-?13|NC-17|R|G|PG)\s*$/i, '')
@@ -132,28 +149,21 @@ function parseCurrentMedia(value) {
 }
 
 function playerMetadata(root) {
-  const label = currentPlayerLabel();
+  const { label, metadataRoot } = currentPlayerInfo(root);
   const parsed = parseCurrentMedia(label);
-  const series = firstText([
-    '[data-testid="player-metadata"] .PlayerMetadata__titleText',
-    '.PlayerMetadata__titleText',
-  ], root) || parsed.series;
-  const seasonEpisode = firstText([
-    '[data-testid="player-metadata"] .PlayerMetadata__seasonEpisodeText',
-    '.PlayerMetadata__seasonEpisodeText',
-  ], root);
+  const playerTitle = metadataRoot ? firstText(['.PlayerMetadata__titleText'], metadataRoot) : '';
+  const seasonEpisode = metadataRoot ? firstText(['.PlayerMetadata__seasonEpisodeText'], metadataRoot) : '';
   const numbers = seasonEpisode.match(/\bS(?:eason\s*)?(\d+)\s*E(?:pisode\s*)?(\d+)\b/i);
-  const title = cleanEpisodeTitle(firstText([
-    '[data-testid="player-metadata"] .PlayerMetadata__subTitleText',
-    '.PlayerMetadata__subTitleText',
-  ], root)) || parsed.title;
+  const episodeTitle = metadataRoot
+    ? cleanEpisodeTitle(firstText(['.PlayerMetadata__subTitleText'], metadataRoot)) : '';
+  const isEpisode = Boolean(numbers || parsed.isEpisode || (playerTitle && episodeTitle));
   return {
     label,
-    title,
-    series,
+    title: isEpisode ? episodeTitle || parsed.title : cleanPlayerLabel(playerTitle || parsed.title),
+    series: isEpisode ? playerTitle || parsed.series : '',
     season: Number(numbers?.[1]) || parsed.season,
     episode: Number(numbers?.[2]) || parsed.episode,
-    isEpisode: Boolean(numbers || parsed.isEpisode || (series && title)),
+    isEpisode,
   };
 }
 
@@ -266,20 +276,37 @@ function episodeDataFromPage(html, episodeId) {
   };
 }
 
-function pageSeriesText(seriesUrl) {
+function movieArtworkFromPage(html, movieId) {
+  const tag = String(html || '').match(/<meta\b[^>]*(?:property="og:image"|name="twitter:image")[^>]*>/i)?.[0] || '';
+  const raw = tag.match(/\bcontent="([^"]+)"/i)?.[1]?.replace(/&amp;/g, '&') || '';
+  const artwork = imageUrl(raw);
+  if (!artwork) return '';
+  const url = new URL(artwork);
+  if (!/(^|\.)img\d*\.hulu\.com$/i.test(url.hostname) ||
+      url.pathname !== `/user/v3/artwork/${movieId}` || !url.searchParams.has('base_image')) return '';
+  url.searchParams.delete('size');
+  url.searchParams.delete('format');
+  url.searchParams.set('operations', JSON.stringify([
+    { resize: '600x600|max' },
+    { format: 'webp' },
+  ]));
+  return url.toString();
+}
+
+function pageText(pageUrl) {
   // The extension bridge calls fetch from the service worker. A stored fetch
-  // reference throws "Illegal invocation" there, and the series page is
-  // same-origin with the watch page, so read it here first.
+  // reference throws "Illegal invocation" there. Hulu's detail pages are
+  // same-origin with the watch page, so read them here first.
   if (typeof fetch !== 'function') return Promise.reject(new Error('Page fetch is unavailable.'));
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
   const timer = typeof setTimeout === 'function' ? setTimeout(() => controller?.abort(), 3000) : 0;
-  return fetch(seriesUrl, {
+  return fetch(pageUrl, {
     credentials: 'omit',
     redirect: 'follow',
     ...(controller ? { signal: controller.signal } : {}),
   }).then((response) => {
     if (!response?.ok || typeof response.text !== 'function') {
-      throw new Error('Hulu series page was not readable.');
+      throw new Error('Hulu detail page was not readable.');
     }
     return response.text();
   }).finally(() => {
@@ -287,20 +314,65 @@ function pageSeriesText(seriesUrl) {
   });
 }
 
-function extensionSeriesText(seriesUrl) {
-  return ChudPresence.net.fetch(seriesUrl, { responseType: 'text', timeoutMs: 3000 }).then((response) => {
+function extensionPageText(pageUrl) {
+  return ChudPresence.net.fetch(pageUrl, { responseType: 'text', timeoutMs: 3000 }).then((response) => {
     if (!response?.ok || typeof response.data !== 'string') {
-      throw new Error('Hulu series page request failed.');
+      throw new Error('Hulu detail page request failed.');
     }
     return response.data;
   });
 }
 
 function seriesPageText(seriesUrl, episodeId) {
-  return pageSeriesText(seriesUrl).then((html) => {
+  return pageText(seriesUrl).then((html) => {
     if (episodeDataFromPage(html, episodeId)) return html;
-    return extensionSeriesText(seriesUrl);
-  }, () => extensionSeriesText(seriesUrl));
+    return extensionPageText(seriesUrl);
+  }, () => extensionPageText(seriesUrl));
+}
+
+function moviePageText(movieUrl, movieId) {
+  return pageText(movieUrl).then((html) => {
+    if (movieArtworkFromPage(html, movieId)) return html;
+    return extensionPageText(movieUrl);
+  }, () => extensionPageText(movieUrl));
+}
+
+function ensureMovieArtwork(movieId) {
+  if (!movieId) return;
+  if (movieArtworkKey !== movieId) {
+    movieArtworkRequestToken += 1;
+    movieArtworkRequestKey = '';
+    movieArtwork = '';
+    movieArtworkKey = movieId;
+    movieArtworkStatus = 'idle';
+    movieArtworkAttempts = 0;
+    movieArtworkNextRetryAt = 0;
+  }
+  if (movieArtworkStatus === 'ready' || movieArtworkRequestKey === movieId ||
+      Date.now() < movieArtworkNextRetryAt) return;
+  movieArtworkRequestKey = movieId;
+  const requestToken = ++movieArtworkRequestToken;
+  movieArtworkAttempts += 1;
+  movieArtworkStatus = 'loading';
+  moviePageText(`https://www.hulu.com/movie/${movieId}`, movieId).then((html) => {
+    if (movieArtworkRequestToken !== requestToken || movieArtworkRequestKey !== movieId) return;
+    movieArtwork = movieArtworkFromPage(html, movieId);
+    movieArtworkStatus = movieArtwork ? 'ready' : 'failed';
+    movieArtworkNextRetryAt = movieArtwork ? 0 : Date.now() +
+      EPISODE_DATA_RETRY_DELAYS_MS[Math.min(movieArtworkAttempts - 1, EPISODE_DATA_RETRY_DELAYS_MS.length - 1)];
+    lastSerialized = null;
+    tick();
+  }).catch(() => {
+    if (movieArtworkRequestToken !== requestToken || movieArtworkRequestKey !== movieId) return;
+    movieArtwork = '';
+    movieArtworkStatus = 'failed';
+    movieArtworkNextRetryAt = Date.now() +
+      EPISODE_DATA_RETRY_DELAYS_MS[Math.min(movieArtworkAttempts - 1, EPISODE_DATA_RETRY_DELAYS_MS.length - 1)];
+  }).finally(() => {
+    if (movieArtworkRequestToken === requestToken && movieArtworkRequestKey === movieId) {
+      movieArtworkRequestKey = '';
+    }
+  });
 }
 
 function ensureEpisodeData(seriesUrl) {
@@ -446,12 +518,14 @@ function collect() {
   if (!title || (!video && !label && !structured && !remote)) return null;
 
   const kind = isEpisode ? 'episode' : (isMovie || label ? 'movie' : 'video');
+  if (kind === 'movie') ensureMovieArtwork(episodeId);
   const currentUrl = watchUrl();
   const homeUrl = 'https://www.hulu.com/';
   const seriesName = series.slice(0, 256);
   const episodeName = title.slice(0, 256);
   const episodeInfo = episodeLabel(season, episode);
-  const artwork = remote?.artwork || imageUrl(structured?.image) || imageUrl(structured?.thumbnailUrl) ||
+  const artwork = remote?.artwork || (movieArtworkKey === episodeId ? movieArtwork : '') ||
+    imageUrl(structured?.image) || imageUrl(structured?.thumbnailUrl) ||
     imageUrl(metaArtwork) || imageUrl(video?.poster) || pageArtwork(episodeName, seriesName) || session.artwork;
   const playerTimeline = timeline(root);
   const position = playerTimeline
@@ -545,6 +619,13 @@ ChudPresence.navigation.onChange(() => {
   episodeDataAttempts = 0;
   episodeDataNextRetryAt = 0;
   episodeDataStatus = 'idle';
+  movieArtwork = '';
+  movieArtworkKey = '';
+  movieArtworkRequestKey = '';
+  movieArtworkRequestToken += 1;
+  movieArtworkAttempts = 0;
+  movieArtworkNextRetryAt = 0;
+  movieArtworkStatus = 'idle';
   observePlayer();
   tick();
 });
