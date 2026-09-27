@@ -267,7 +267,7 @@ messages, and validates every report. It checks the sending world, page URL,
 report shape, field sizes, and request rate. Each Activity may send 30 runtime
 requests per tab in a 10-second window. Each report remains tied to its tab,
 frame, document, and sender URL. Keep sending reports while playback continues:
-a frame that has not reported for 30 seconds is dropped and its presence is
+a frame that has not reported for 90 seconds is dropped and its presence is
 cleared. If the extension runtime disconnects, the script reconnects and
 resubmits its last report.
 
