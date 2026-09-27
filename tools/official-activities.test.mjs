@@ -464,6 +464,41 @@ test('YouTube Music package reports a song and applies V1 presentation settings'
   assert.equal(activity.reports.at(-1), null);
 });
 
+test('YouTube Music links song, displayed artist or album, and cover art', async () => {
+  const artistUrl = 'https://music.youtube.com/channel/artist';
+  const albumUrl = 'https://music.youtube.com/playlist?list=album';
+  const links = [
+    { textContent: 'Artist', href: artistUrl },
+    { textContent: 'Album', href: albumUrl },
+  ];
+  const bar = {
+    querySelector() { return null; },
+    querySelectorAll() { return links; },
+  };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    selectors: { 'ytmusic-player-bar': bar },
+    metadata: { mediaSession: {
+      title: 'Track', artist: 'Artist', album: 'Album',
+      artwork: [{ src: 'https://example.com/cover.png', sizes: '512x512' }],
+    } },
+  });
+  const playing = activity.reports.at(-1);
+  assert.equal(playing.display.detailsUrl, 'https://music.youtube.com/watch?v=abcdefghijk');
+  assert.equal(playing.display.stateUrl, artistUrl);
+  assert.equal(playing.artwork.largeUrl, albumUrl);
+
+  activity.settings({ id: 'displayMode', value: 'album', settings: { displayMode: 'album' } });
+  assert.equal(activity.reports.at(-1).display.state, 'Album');
+  assert.equal(activity.reports.at(-1).display.stateUrl, albumUrl);
+
+  links[1].href = 'javascript:alert(1)';
+  activity.advance();
+  assert.equal(activity.reports.at(-1).display.stateUrl, undefined);
+  assert.equal(activity.reports.at(-1).artwork.largeUrl, undefined);
+  activity.cleanup();
+});
+
 test('YouTube Music adds a pause badge to album art while paused', async () => {
   const session = {
     title: 'Track', artist: 'Artist', album: 'Album',

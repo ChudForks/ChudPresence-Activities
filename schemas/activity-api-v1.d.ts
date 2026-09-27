@@ -93,11 +93,14 @@ export type ActivityReport = {
 };
   "display"?: {
   "details"?: string;
+  "detailsUrl"?: string;
   "state"?: string;
+  "stateUrl"?: string;
   "statusDisplay"?: "name" | "details" | "state";
 };
   "artwork"?: {
   "large"?: string;
+  "largeUrl"?: string;
   "largeText"?: string;
   "small"?: string;
   "smallText"?: string;

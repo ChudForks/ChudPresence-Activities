@@ -40,6 +40,17 @@ function artistSearchUrl(artist) {
   return url.toString();
 }
 
+function musicLink(anchor) {
+  if (!anchor?.href) return '';
+  try {
+    const url = new URL(anchor.href, location.origin);
+    return url.protocol === 'https:' && url.hostname === 'music.youtube.com' &&
+      !url.username && !url.password ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
 function bestArtwork(sessionArt, fallback) {
   const list = Array.isArray(sessionArt) ? sessionArt : [];
   let best = '';
@@ -96,6 +107,10 @@ function collect() {
   const album = rawAlbum && !rawAlbum.toLowerCase().includes((title.split('(')[0] || '').trim().toLowerCase())
     ? rawAlbum
     : '';
+  const linkedByline = [...(bar?.querySelectorAll('.byline a, .subtitle a') || [])];
+  const artistUrl = musicLink(linkedByline[0]);
+  const albumUrl = album ? musicLink(linkedByline.find((link) =>
+    textOf(link).toLowerCase() === album.toLowerCase())) : '';
   const image = bar?.querySelector('img.image, .image img, .thumbnail-image-wrapper img');
   const artwork = bestArtwork(metadata.artwork, image?.currentSrc || image?.src || '');
   const videoId = new URLSearchParams(location.search).get('v') ||
@@ -119,6 +134,8 @@ function collect() {
     : artist;
 
   const url = videoId ? `https://music.youtube.com/watch?v=${encodeURIComponent(videoId)}` : location.href;
+  const songUrl = videoId ? url : '';
+  const stateUrl = displayArtist === album && album ? albumUrl : artistUrl;
   const buttons = [{ label: 'Play on YouTube Music', url }];
   const searchUrl = artistSearchUrl(artist);
   if (searchUrl) buttons.push({ label: 'Search artist', url: searchUrl });
@@ -126,7 +143,12 @@ function collect() {
   return {
     kind: 'song',
     media: { title, ...(artist ? { artist } : {}), ...(album ? { album } : {}) },
-    display: { details: title, state: displayArtist || '' },
+    display: {
+      details: title,
+      state: displayArtist || '',
+      ...(songUrl ? { detailsUrl: songUrl } : {}),
+      ...(stateUrl ? { stateUrl } : {}),
+    },
     playback: {
       state: playing ? 'playing' : 'paused',
       position,
@@ -136,6 +158,7 @@ function collect() {
     },
     artwork: activitySettings.showArtwork ? {
       ...(artwork ? { large: artwork } : {}),
+      ...(artwork && (album ? albumUrl : artistUrl) ? { largeUrl: album ? albumUrl : artistUrl } : {}),
       ...(album ? { largeText: album } : {}),
       ...(!playing && artwork ? { small: PAUSE_ARTWORK_URL, smallText: 'Paused' } : {}),
     } : {},

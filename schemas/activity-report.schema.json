@@ -110,8 +110,14 @@
         "details": {
           "$ref": "#/$defs/text"
         },
+        "detailsUrl": {
+          "$ref": "#/$defs/httpsUrl"
+        },
         "state": {
           "$ref": "#/$defs/text"
+        },
+        "stateUrl": {
+          "$ref": "#/$defs/httpsUrl"
         },
         "statusDisplay": {
           "enum": [
@@ -127,6 +133,9 @@
       "additionalProperties": false,
       "properties": {
         "large": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "largeUrl": {
           "$ref": "#/$defs/httpsUrl"
         },
         "largeText": {

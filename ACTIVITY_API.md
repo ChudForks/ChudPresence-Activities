@@ -111,6 +111,12 @@ duration zero, not live, and rate one. Visibility defaults to `normal`.
 Supported values are `normal`, `idle`, `private`, and `ad`; only normal reports
 are published.
 
+Optional `display.detailsUrl` and `display.stateUrl` make the corresponding
+presence text clickable. `artwork.largeUrl` makes the large image clickable
+when `artwork.large` is present. For a song, use the song URL as `detailsUrl`,
+the displayed artist URL as `stateUrl`, and the album URL as `largeUrl`.
+These links are independent of the two-button limit and must be HTTPS URLs.
+
 URLs must be HTTPS. Text fields are limited to 256 characters, playback values
 are bounded, buttons are limited to two with 32-character labels, and the
 serialized report is limited to 16 KB. Supported kinds are `video`, `movie`,
