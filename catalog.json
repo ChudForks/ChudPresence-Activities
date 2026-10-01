@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-26T18:12:53.428Z",
+  "generatedAt": "2026-10-01T17:20:58.242Z",
   "activities": [
     {
       "id": "67movies",
@@ -64,7 +64,7 @@
       "description": "Show the anime episode or movie playing on Crunchyroll.",
       "version": "1.0.8",
       "apiVersion": 1,
-      "category": "streaming",
+      "category": "video",
       "author": {
         "name": "ChudPresence"
       },
@@ -121,7 +121,7 @@
       "entry": "activities/crunchyroll/activity.js",
       "metadata": "activities/crunchyroll/metadata.json",
       "sha256": "ced9764328e44d67cfc2c3fe3abcf739decabc5f5a880be51a8aa150def41af2",
-      "metadataSha256": "174ec7463a98c05a6964d72149fc19be0605fec505f716571e1186be208fd166",
+      "metadataSha256": "5814cc4de7487d33058bc2f1a7c8725cfe824eab59d4160daf0a2c4fcc38f029",
       "icon": "activities/crunchyroll/icon.png",
       "iconSha256": "c82119ef8bdc7d60867e69d38291efb58737a5a4248154e6d14fb6ab4a19761f"
     },
@@ -131,7 +131,7 @@
       "description": "Show the movie or episode playing on Hulu.",
       "version": "1.0.9",
       "apiVersion": 1,
-      "category": "streaming",
+      "category": "video",
       "author": {
         "name": "ChudPresence"
       },
@@ -176,7 +176,7 @@
       "entry": "activities/hulu/activity.js",
       "metadata": "activities/hulu/metadata.json",
       "sha256": "c4f6c86ab94970c7faf893ec4ca2c348dcf57586e05fd83203f3ba32016993f8",
-      "metadataSha256": "f900f364b957261955772b39acfa28fa6420993ff78f9e5f8270a5d4fa4275ed",
+      "metadataSha256": "274b2ae7788c4d22ec437845fe7822d39ebbfe247b69bc8cc8b51715e7a99e35",
       "icon": "activities/hulu/icon.png",
       "iconSha256": "cd9c10f39d9ec5b25112bb5f01631b44905c3cbde97f1a064347201584031cc2"
     },
@@ -309,7 +309,7 @@
       "id": "youtube-music",
       "name": "YouTube Music",
       "description": "Show the song, artist, and playback progress from YouTube Music.",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "apiVersion": 1,
       "category": "music",
       "author": {
@@ -370,8 +370,8 @@
       ],
       "entry": "activities/youtube-music/activity.js",
       "metadata": "activities/youtube-music/metadata.json",
-      "sha256": "15548fe771266cfca2756cd8e8d527396a0ed38cd28b6199608197b8eb77c5c6",
-      "metadataSha256": "3b05e50871cac2588c454d7efb371902d9a484ec7172cacc9554ebeeaf20ce54",
+      "sha256": "46ec5cb1f90275bdf03be565fbc4b73e5d093b7745219ee7a03c1e117adda8eb",
+      "metadataSha256": "ac399ade568eb2f331086976440d555dc551bbc30320bf077ebb346b66300f84",
       "icon": "activities/youtube-music/icon.png",
       "iconSha256": "ca92012f8317a578b68a6d21011482ef9ebcba334fc0fe9a4caa7c092e47ac1e"
     }

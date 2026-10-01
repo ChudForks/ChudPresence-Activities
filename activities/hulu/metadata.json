@@ -7,7 +7,7 @@
   "author": {
     "name": "ChudPresence"
   },
-  "category": "streaming",
+  "category": "video",
   "defaultMediaKind": "episode",
   "aliases": ["Hulu"],
   "tags": ["movies", "tv", "streaming"],

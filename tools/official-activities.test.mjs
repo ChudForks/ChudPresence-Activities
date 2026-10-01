@@ -21,6 +21,19 @@ async function runActivity(id, {
   let mediaChanged;
   let heartbeat;
   let now = 2000;
+  const timeouts = [];
+  function elapse(ms) {
+    const target = now + ms;
+    while (true) {
+      const next = timeouts.reduce((first, timer) =>
+        timer.at <= target && (!first || timer.at < first.at) ? timer : first, null);
+      if (!next) break;
+      timeouts.splice(timeouts.indexOf(next), 1);
+      now = next.at;
+      next.callback();
+    }
+    now = target;
+  }
   const location = new URL(url);
   const store = {};
   const document = {
@@ -55,6 +68,7 @@ async function runActivity(id, {
     lifecycle: {
       signal: { aborted: false },
       interval(callback) { heartbeat = callback; },
+      timeout(callback, delay) { timeouts.push({ callback, at: now + delay }); },
       onCleanup(callback) { cleanups.push(callback); },
     },
     navigation: { onChange(callback) { navigationChanged = callback; } },
@@ -98,15 +112,16 @@ async function runActivity(id, {
   }, { filename: `${id}/activity.js` });
   return {
     reports,
-    settings(event) { now += 2000; settingsChanged(event); },
-    navigate(href) { now += 500; location.href = href; navigationChanged(); },
-    mediaChange() { now += 500; mediaChanged(); },
+    settings(event) { elapse(2000); settingsChanged(event); },
+    navigate(href) { elapse(500); location.href = href; navigationChanged(); },
+    mediaChange() { elapse(500); mediaChanged(); },
     message(event) {
       for (const listener of windowListeners) {
         if (listener.type === 'message') listener.callback(event);
       }
     },
-    advance() { now += 2000; heartbeat(); },
+    advance() { elapse(2000); heartbeat(); },
+    elapse,
     cleanup() { for (const callback of cleanups) callback(); },
     document,
     storage: store,
@@ -462,6 +477,61 @@ test('YouTube Music package reports a song and applies V1 presentation settings'
   assert.equal(activity.reports.at(-1), null);
   activity.cleanup();
   assert.equal(activity.reports.at(-1), null);
+});
+
+test('YouTube Music keeps presence through brief player layout and playback changes', async () => {
+  const video = { currentTime: 51, duration: 327, paused: false, ended: false, playbackRate: 1 };
+  const bar = {
+    querySelector(selector) {
+      if (selector === '.title') return { textContent: 'So Far Away' };
+      if (selector === '.time-info') return { textContent: '0:51 / 5:27' };
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+  const selectors = { 'ytmusic-player-bar': bar, video };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    selectors,
+    mediaSessionState: 'paused',
+  });
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+
+  const initialCount = activity.reports.length;
+  delete selectors['ytmusic-player-bar'];
+  activity.mediaChange();
+  assert.equal(activity.reports.length, initialCount);
+  activity.elapse(500);
+  selectors['ytmusic-player-bar'] = bar;
+  activity.mediaChange();
+  activity.elapse(1250);
+  assert.equal(activity.reports.includes(null), false);
+
+  video.paused = true;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  video.paused = false;
+  activity.mediaChange();
+  activity.elapse(1250);
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  assert.equal(activity.reports.some((report) => report?.playback.state === 'paused'), false);
+
+  video.paused = true;
+  activity.mediaChange();
+  activity.elapse(1250);
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  video.paused = false;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+
+  delete selectors['ytmusic-player-bar'];
+  activity.mediaChange();
+  activity.elapse(1250);
+  assert.equal(activity.reports.at(-1), null);
+  selectors['ytmusic-player-bar'] = bar;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  activity.cleanup();
 });
 
 test('YouTube Music links song, displayed artist or album, and cover art', async () => {

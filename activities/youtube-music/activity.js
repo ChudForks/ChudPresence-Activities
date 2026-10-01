@@ -1,6 +1,11 @@
 let lastSerialized = null;
 let lastSentAt = 0;
+let lastPlaybackState = 'none';
+let pendingState = '';
+let pendingStateSince = 0;
 let activitySettings = { showAlbum: true, showArtwork: true, displayMode: 'artist' };
+// Expanding the player can briefly remove its title or pause the media element.
+const TRANSIENT_STATE_MS = 1250;
 const PAUSE_ARTWORK_URL = 'https://raw.githubusercontent.com/ChudForks/ChudPresence-Activities/main/presence-assets/pause.png';
 
 function textOf(node) {
@@ -169,12 +174,28 @@ function collect() {
 function tick() {
   if (ChudPresence.lifecycle.signal.aborted) return;
   const report = collect();
-  const serialized = report ? JSON.stringify(report) : '';
   const now = Date.now();
+  const nextState = report?.playback.state || 'none';
+  const uncertainState = !isAd() && lastPlaybackState !== 'none' &&
+    (!report || (lastPlaybackState === 'playing' && nextState === 'paused'))
+    ? nextState : '';
+  if (uncertainState) {
+    if (pendingState !== uncertainState) {
+      pendingState = uncertainState;
+      pendingStateSince = now;
+      ChudPresence.lifecycle.timeout(tick, TRANSIENT_STATE_MS);
+    }
+    if (now - pendingStateSince < TRANSIENT_STATE_MS) return;
+  } else {
+    pendingState = '';
+  }
+  const serialized = report ? JSON.stringify(report) : '';
   if (serialized === lastSerialized && now - lastSentAt < 8000) return;
-  if (report && now - lastSentAt < 1000) return;
+  if (report && nextState === lastPlaybackState && now - lastSentAt < 1000) return;
+  pendingState = '';
   lastSerialized = serialized;
   lastSentAt = now;
+  lastPlaybackState = nextState;
   if (report) ChudPresence.report(report);
   else ChudPresence.clear();
 }

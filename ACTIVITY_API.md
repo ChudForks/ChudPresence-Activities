@@ -121,11 +121,10 @@ URLs must be HTTPS. Text fields are limited to 256 characters, playback values
 are bounded, buttons are limited to two with 32-character labels, and the
 serialized report is limited to 16 KB. Supported kinds are `video`, `movie`,
 `episode`, `song`, `stream`, `game`, and `generic`. Discord's activity type
-follows that kind: `song` is listening, `stream` is streaming when a button URL
-is present and watching otherwise, `game` and `generic` are playing, and the
-other kinds are watching. Presence details, timestamps, artwork, and buttons are
-derived from generic report fields. Extension core does not format reports by
-Activity ID.
+follows that kind: `song` is listening, `stream` is watching, `game` and
+`generic` are playing, and the other kinds are watching. Presence details,
+timestamps, artwork, and buttons are derived from generic report fields.
+Extension core does not format reports by Activity ID.
 
 `ChudPresence.runtime` exposes the registered `activityId`, Activity and API
 versions, extension version, a frame descriptor, and `has(feature)`.
