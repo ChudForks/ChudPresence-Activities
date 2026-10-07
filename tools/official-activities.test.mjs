@@ -558,6 +558,267 @@ function musicSeekSlider(clock) {
   };
 }
 
+for (const bridge of [false, true]) {
+  test(`YouTube Music reacts to home-page song clicks with a stale canonical URL${bridge ? ' through the page bridge' : ''}`, async () => {
+    const session = { title: 'Previous song', artist: 'Previous artist' };
+    const clock = { position: 180, duration: 278 };
+    const video = { currentTime: 663, duration: 760, paused: false, ended: false, playbackRate: 1 };
+    const canonical = { href: 'https://music.youtube.com/watch?v=0d9Oqm0Dt60' };
+    const playerLink = { href: canonical.href };
+    const page = { videoId: '0d9Oqm0Dt60', title: session.title, position: 180, duration: 278, metadataDuration: 278 };
+    const activity = await runActivity('youtube-music', {
+      url: 'https://music.youtube.com/', metadata: { mediaSession: session },
+      selectors: { video, '#progress-bar': musicSeekSlider(clock),
+        'link[rel="canonical"]': canonical, 'ytmusic-player a[href*="watch"]': playerLink },
+      ...(bridge ? { pageExecute: musicPlayerReader(page) } : {}),
+    });
+    await flushActivity();
+    assert.equal(activity.reports.at(-1).media.title, 'Previous song');
+    session.title = "I'm Like A Lawyer With The Way I'm Always Trying To Get You Off (Me & You)";
+    session.artist = 'Fall Out Boy';
+    playerLink.href = 'https://music.youtube.com/watch?list=RDAMVM9QubKb7pjps&v=9QubKb7pjps';
+    clock.position = 0;
+    clock.duration = 212;
+    video.currentTime = 0;
+    video.duration = 212;
+    Object.assign(page, { videoId: '9QubKb7pjps', title: session.title, position: 0, duration: 212, metadataDuration: 212 });
+    activity.mediaChange();
+    await flushActivity();
+    activity.elapse(1000);
+    await flushActivity();
+    const clicked = activity.reports.at(-1);
+    assert.equal(clicked.media.title, session.title);
+    assert.equal(clicked.media.artist, 'Fall Out Boy');
+    assert.equal(clicked.playback.position, 0);
+    assert.equal(clicked.playback.duration, 212);
+    assert.equal(clicked.display.detailsUrl, 'https://music.youtube.com/watch?v=9QubKb7pjps');
+    assert.equal(canonical.href, 'https://music.youtube.com/watch?v=0d9Oqm0Dt60');
+    clock.position = 3;
+    video.currentTime = 3;
+    page.position = 3;
+    activity.advance();
+    await flushActivity();
+    assert.equal(activity.reports.at(-1).playback.position, 3);
+    assert.equal(activity.reports.at(-1).playback.duration, 212);
+    activity.cleanup();
+  });
+}
+
+test('YouTube Music tracks home-page playback by title when no current song ID is available', async () => {
+  const session = { title: 'Previous song', artist: 'Artist' };
+  const clock = { position: 180, duration: 278 };
+  const video = { currentTime: 663, duration: 760, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/', metadata: { mediaSession: session },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock),
+      'link[rel="canonical"]': { href: 'https://music.youtube.com/watch?v=0d9Oqm0Dt60' } },
+  });
+  clock.position = 182;
+  video.currentTime = 665;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 182);
+  session.title = 'Clicked song';
+  clock.position = 0;
+  clock.duration = 212;
+  video.currentTime = 0;
+  video.duration = 212;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).media.title, 'Clicked song');
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.duration, 212);
+  clock.position = 5;
+  video.currentTime = 5;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 5);
+  clock.position = 0;
+  video.currentTime = 0;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 0, 'the title identity must also allow real seeks');
+  activity.cleanup();
+});
+
+test('YouTube Music uses the playing song link while the watch URL preloads or remains on another song', async () => {
+  const session = { title: 'Previous song' };
+  const clock = { position: 202, duration: 218 };
+  const video = { currentTime: 444, duration: 700, paused: false, ended: false, playbackRate: 1 };
+  const playerLink = { href: 'https://music.youtube.com/watch?v=abcdefghijk' };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock), 'ytmusic-player a[href*="watch"]': playerLink },
+  });
+  activity.navigate('https://music.youtube.com/watch?v=lmnopqrstuv');
+  assert.equal(activity.reports.at(-1).media.title, 'Previous song');
+  assert.equal(activity.reports.at(-1).display.detailsUrl, playerLink.href);
+  video.currentTime = 446;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 204);
+  session.title = 'Clicked song';
+  playerLink.href = 'https://music.youtube.com/watch?v=woz5qvDdMRM';
+  clock.position = 0;
+  clock.duration = 278;
+  video.currentTime = 0;
+  video.duration = 278;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).media.title, 'Clicked song');
+  assert.equal(activity.reports.at(-1).display.detailsUrl, playerLink.href);
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.duration, 278);
+  activity.cleanup();
+});
+
+for (const hidden of [false, true]) {
+  test(`YouTube Music does not anchor a new home-page song to the previous elapsed value${hidden ? ' in the background' : ''}`, async () => {
+    const session = { title: 'Previous song', artist: 'Fall Out Boy' };
+    const clock = { position: 180, duration: 278 };
+    const video = { currentTime: 663, duration: 760, paused: false, ended: false, playbackRate: 1 };
+    const playerLink = { href: 'https://music.youtube.com/watch?v=abcdefghijk' };
+    const activity = await runActivity('youtube-music', {
+      url: 'https://music.youtube.com/', metadata: { mediaSession: session },
+      selectors: { video, '#progress-bar': musicSeekSlider(clock), 'ytmusic-player a[href*="watch"]': playerLink },
+    });
+    activity.document.hidden = hidden;
+    session.title = 'Love From The Other Side';
+    playerLink.href = 'https://music.youtube.com/watch?v=kxVLScacNyY';
+    clock.duration = 280;
+    video.currentTime = 784;
+    video.duration = 1023;
+    activity.mediaChange();
+    assert.equal(activity.reports.at(-1).media.title, 'Previous song', 'a new maximum alone does not confirm its elapsed value');
+    clock.position = 1;
+    video.currentTime = 785;
+    activity.advance();
+    assert.equal(activity.reports.at(-1).media.title, 'Love From The Other Side');
+    assert.equal(activity.reports.at(-1).playback.position, 1);
+    assert.equal(activity.reports.at(-1).playback.duration, 280);
+    clock.position = 113;
+    video.currentTime = 897;
+    activity.advance();
+    assert.equal(activity.reports.at(-1).playback.position, 113);
+    assert.equal(activity.reports.at(-1).playback.duration, 280);
+    session.title = 'From Now On We Are Enemies';
+    playerLink.href = 'https://music.youtube.com/watch?v=lmnopqrstuv';
+    clock.duration = 217;
+    clock.position = 0;
+    video.currentTime = 1064;
+    activity.mediaChange();
+    assert.equal(activity.reports.at(-1).media.title, session.title);
+    assert.equal(activity.reports.at(-1).playback.position, 0);
+    assert.equal(activity.reports.at(-1).playback.duration, 217, 'the shorter third song still gets its own clock');
+    activity.cleanup();
+  });
+}
+
+test('YouTube Music repairs a home-page offset when the media timeline changes after the new seek clock', async () => {
+  const session = { title: 'Previous song', artist: 'Fall Out Boy' };
+  const clock = { position: 180, duration: 278 };
+  const video = { currentTime: 663, duration: 760, paused: false, ended: false, playbackRate: 1 };
+  const playerLink = { href: 'https://music.youtube.com/watch?v=abcdefghijk' };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/', metadata: { mediaSession: session },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock), 'ytmusic-player a[href*="watch"]': playerLink },
+  });
+  session.title = 'Love From The Other Side';
+  playerLink.href = 'https://music.youtube.com/watch?v=kxVLScacNyY';
+  clock.position = 0;
+  clock.duration = 280;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  clock.position = 1;
+  video.currentTime = 785;
+  video.duration = 1023;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 1);
+  assert.equal(activity.reports.at(-1).playback.duration, 280);
+  clock.position = 113;
+  video.currentTime = 897;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 113);
+  activity.document.hidden = true;
+  video.currentTime = 900;
+  video.duration = 1400;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 116, 'a frozen slider must not keep rebasing the offset');
+  assert.equal(activity.reports.at(-1).playback.duration, 280);
+  activity.cleanup();
+});
+
+test('YouTube Music does not carry a new home-page maximum while the previous elapsed clock keeps advancing', async () => {
+  const session = { title: 'Previous song' };
+  const clock = { position: 180, duration: 278 };
+  const video = { currentTime: 663, duration: 760, paused: false, ended: false, playbackRate: 1 };
+  const playerLink = { href: 'https://music.youtube.com/watch?v=abcdefghijk' };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/', metadata: { mediaSession: session },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock), 'ytmusic-player a[href*="watch"]': playerLink },
+  });
+  session.title = 'Love From The Other Side';
+  playerLink.href = 'https://music.youtube.com/watch?v=kxVLScacNyY';
+  clock.duration = 280;
+  activity.mediaChange();
+  clock.position = 183;
+  video.currentTime = 666;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).media.title, 'Previous song');
+  clock.position = 2;
+  video.currentTime = 786;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).media.title, 'Love From The Other Side');
+  assert.equal(activity.reports.at(-1).playback.position, 2);
+  assert.equal(activity.reports.at(-1).playback.duration, 280);
+  activity.cleanup();
+});
+
+test('YouTube Music preserves elapsed playback across a delayed home-page timeline switch with a frozen seek clock', async () => {
+  const session = { title: 'Previous song' };
+  const clock = { position: 180, duration: 278 };
+  const video = { currentTime: 663, duration: 760, paused: false, ended: false, playbackRate: 1 };
+  const playerLink = { href: 'https://music.youtube.com/watch?v=abcdefghijk' };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/', metadata: { mediaSession: session },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock), 'ytmusic-player a[href*="watch"]': playerLink },
+  });
+  activity.document.hidden = true;
+  session.title = 'Love From The Other Side';
+  playerLink.href = 'https://music.youtube.com/watch?v=kxVLScacNyY';
+  clock.position = 0;
+  clock.duration = 280;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  video.currentTime = 786;
+  video.duration = 1023;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 2, 'a timeline offset jump is not two minutes of playback');
+  video.currentTime = 788;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 4);
+  assert.equal(activity.reports.at(-1).playback.duration, 280);
+  clock.position = 6;
+  video.currentTime = 790;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 6);
+  activity.cleanup();
+});
+
+test('YouTube Music accepts a genuinely resumed song even when its elapsed value resembles the previous song', async () => {
+  const session = { title: 'Previous song' };
+  const clock = { position: 180, duration: 278 };
+  const video = { currentTime: 663, duration: 760, paused: false, ended: false, playbackRate: 1 };
+  const playerLink = { href: 'https://music.youtube.com/watch?v=abcdefghijk' };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/', metadata: { mediaSession: session },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock), 'ytmusic-player a[href*="watch"]': playerLink },
+  });
+  session.title = 'Resumed song';
+  playerLink.href = 'https://music.youtube.com/watch?v=lmnopqrstuv';
+  video.currentTime = 180;
+  video.duration = 278;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).media.title, 'Resumed song');
+  assert.equal(activity.reports.at(-1).playback.position, 180);
+  assert.equal(activity.reports.at(-1).playback.duration, 278);
+  activity.cleanup();
+});
+
 test('YouTube Music reads song timing from seek attributes instead of the cumulative playlist video', async () => {
   const clock = { position: 180, duration: 278 };
   const video = { currentTime: 662.884159, duration: 759.897777, paused: false, ended: false, playbackRate: 1 };
@@ -594,6 +855,7 @@ test('YouTube Music advances a frozen background slider with a fixed song durati
   activity.advance();
   assert.equal(activity.reports.at(-1).playback.position, 222);
   assert.equal(activity.reports.at(-1).playback.duration, 241);
+  activity.elapse(4000);
   video.currentTime = 470;
   video.duration = 1000;
   activity.advance();
@@ -630,6 +892,7 @@ test('YouTube Music waits for the new song clock then recalibrates across cumula
   assert.equal(activity.reports.at(-1).media.title, 'Beneath the Mask');
   assert.equal(activity.reports.at(-1).playback.position, 0);
   assert.equal(activity.reports.at(-1).playback.duration, 278);
+  activity.elapse(11000);
   video.currentTime += 13;
   activity.advance();
   assert.equal(activity.reports.at(-1).playback.position, 13);

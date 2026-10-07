@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-07T21:41:15.009Z",
+  "generatedAt": "2026-10-07T22:28:35.257Z",
   "activities": [
     {
       "id": "67movies",
@@ -309,7 +309,7 @@
       "id": "youtube-music",
       "name": "YouTube Music",
       "description": "Show the song, artist, and playback progress from YouTube Music.",
-      "version": "1.0.12",
+      "version": "1.0.14",
       "apiVersion": 1,
       "category": "music",
       "author": {
@@ -370,8 +370,8 @@
       ],
       "entry": "activities/youtube-music/activity.js",
       "metadata": "activities/youtube-music/metadata.json",
-      "sha256": "91e6b57ffaadddc8a11820f0c98db1bd8360abe4218aaaf80479fa9f62e28870",
-      "metadataSha256": "fe11ce4e58f73b88c72b3f97550baa8219a06d7e96c384bca0b83aef02fcecf6",
+      "sha256": "e2bf837fa67cf844d90d64a07ccde19ced7f376228cdf0007a6b87b8b009c674",
+      "metadataSha256": "7d480e5547d6230545bdaf560e19f4a538c448e4666fa92916ac3fc02afa2131",
       "icon": "activities/youtube-music/icon.png",
       "iconSha256": "ca92012f8317a578b68a6d21011482ef9ebcba334fc0fe9a4caa7c092e47ac1e"
     }

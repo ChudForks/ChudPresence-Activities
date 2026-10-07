@@ -154,10 +154,24 @@ function songTiming(identity, seek, media) {
   const mediaPosition = media.position;
   if (!songClock || songClock.identity !== identity) {
     if (!seek) return songClock ? null : undefined;
-    if (timingIdentity && identity !== timingIdentity && !currentTiming(seek, previousSeekTiming)) return null;
+    if (timingIdentity && identity !== timingIdentity) {
+      const previous = keepConfirmedReport()?.playback;
+      const individualClock = Number.isFinite(mediaPosition) && Math.abs(mediaPosition - seek.position) < 2 &&
+        Math.abs(media.duration - seek.duration) < 2 && (seek.duration !== previous?.duration ||
+          mediaPosition < songClock?.mediaPosition - 2);
+      const nextOffset = songClock && songClock.offset !== null ? songClock.offset + songClock.duration : null;
+      const nextClock = Number.isFinite(mediaPosition) && nextOffset !== null &&
+        Math.abs(mediaPosition - seek.position - nextOffset) < 2;
+      const carriedPosition = seek.position > 1 && previous && (
+        Math.abs(seek.position - previous.position) <= 2 ||
+        (previousSeekTiming && Math.abs(seek.position - previousSeekTiming.position) <= 2));
+      // Updating aria-valuemax does not make the still-old aria-valuenow current.
+      // Wait for a reset/different elapsed clock or an independently aligned media timeline.
+      if ((!currentTiming(seek, previousSeekTiming) || carriedPosition) && !individualClock && !nextClock) return null;
+    }
     songClock = { identity, duration: seek.duration,
       offset: Number.isFinite(mediaPosition) ? mediaPosition - seek.position : null,
-      mediaPosition };
+      mediaPosition, position: seek.position, mediaAt: Date.now() };
     previousSeekTiming = seek;
     return seek;
   }
@@ -169,21 +183,34 @@ function songTiming(identity, seek, media) {
     songClock.offset = mediaPosition - freshSeek.position;
   }
   let position = mediaPosition - songClock.offset;
+  const elapsed = Math.max(0, Date.now() - songClock.mediaAt) / 1000 * (media.playing ? media.rate : 0);
+  const jumped = mediaPosition - songClock.mediaPosition > elapsed + 2;
   if (freshSeek && Math.abs(position - freshSeek.position) >= 2) {
     const reset = Number.isFinite(songClock.mediaPosition) && mediaPosition < songClock.mediaPosition - 2;
     const restarted = freshSeek.position <= 1 && previousSeekTiming?.position > 1;
+    const advancing = freshSeek.position > previousSeekTiming?.position;
     // A queued song can reset the slider before the current audio ends. A real
     // repeat either resets the media clock or crosses this song's end boundary.
     const newTimeline = position < -1 && (freshSeek.position !== previousSeekTiming?.position ||
       previousSeekTiming?.position <= 1);
-    if ((reset && (freshSeek.position < previousSeekTiming?.position - 1 || newTimeline)) ||
+    if (advancing || (reset && (freshSeek.position < previousSeekTiming?.position - 1 || newTimeline)) ||
         (restarted && position >= songClock.duration)) {
       songClock.offset = mediaPosition - freshSeek.position;
       position = freshSeek.position;
+    } else if (jumped) {
+      // A media timeline switch is not elapsed listening time. Keep advancing
+      // a frozen slider from the last confirmed song position across that switch.
+      position = Math.min(songClock.duration, songClock.position + elapsed);
+      songClock.offset = mediaPosition - position;
     }
+  } else if (!freshSeek && jumped) {
+    position = Math.min(songClock.duration, songClock.position + elapsed);
+    songClock.offset = mediaPosition - position;
   }
   if (position < -1) return null;
   songClock.mediaPosition = mediaPosition;
+  songClock.position = Math.max(0, Math.min(songClock.duration, position));
+  songClock.mediaAt = Date.now();
   if (freshSeek && Math.abs(position - freshSeek.position) < 2) previousSeekTiming = freshSeek;
   return { position: Math.max(0, Math.min(songClock.duration, position)), duration: songClock.duration };
 }
@@ -271,15 +298,16 @@ function collect(page) {
     textOf(link).toLowerCase() === album.toLowerCase())) : '';
   const image = bar?.querySelector('img.image, .image img, .thumbnail-image-wrapper img');
   const artwork = bestArtwork(metadata.artwork, image?.currentSrc || image?.src || '');
-  const videoId = new URLSearchParams(location.search).get('v') ||
+  // The home/search route can stay unchanged while songs play, and its canonical
+  // link can retain a previous song. Only current player links identify playback.
+  const videoId = videoIdFromHref(bar?.querySelector('.title')?.closest?.('a')?.href) ||
     videoIdFromHref(bar?.querySelector('a.yt-simple-endpoint[href*="watch"]')?.href) ||
-    videoIdFromHref(bar?.querySelector('.title')?.closest('a')?.href) ||
-    videoIdFromHref(image?.closest('a')?.href) ||
-    videoIdFromHref(document.querySelector('link[rel="canonical"]')?.href) ||
     videoIdFromHref(document.querySelector('ytmusic-player a[href*="watch"]')?.href) ||
-    videoIdFromThumb(image?.src) || page?.videoId || '';
+    videoIdFromHref(image?.closest?.('a')?.href) || videoIdFromThumb(image?.currentSrc || image?.src) ||
+    new URLSearchParams(location.search).get('v') || page?.videoId || '';
+  const identity = videoId || `${title}\n${artist}`;
   if (page?.videoId && page.videoId !== videoId) return keepConfirmedReport();
-  if (confirmedReport && videoId !== timingIdentity && title === confirmedReport.media.title) {
+  if (confirmedReport && identity !== timingIdentity && title === confirmedReport.media.title) {
     if (page?.title && metadata.title === page.title) title = metadata.title;
     else if (!page?.title || page.title !== title) return keepConfirmedReport();
   }
@@ -289,14 +317,17 @@ function collect(page) {
       : Number.isFinite(video?.currentTime) ? video.currentTime : null,
     duration: Number.isFinite(mediaSnapshot?.duration) && mediaSnapshot.duration > 0 ? mediaSnapshot.duration
       : Number.isFinite(video?.duration) && video.duration > 0 ? video.duration : 0,
+    playing: Boolean(mediaSnapshot?.playing || isPlaying(video)),
+    rate: Number.isFinite(mediaSnapshot?.playbackRate) ? mediaSnapshot.playbackRate
+      : Number.isFinite(video?.playbackRate) ? video.playbackRate : 1,
   };
-  if (confirmedReport && videoId === timingIdentity && (video?.ended || video?.readyState === 0) &&
+  if (confirmedReport && identity === timingIdentity && (video?.ended || video?.readyState === 0) &&
       ((Number.isFinite(page?.position) && page.position < confirmedReport.playback.position - 2) ||
-       (songClock?.identity === videoId && songClock.offset !== null && Number.isFinite(mediaTiming.position) &&
+       (songClock?.identity === identity && songClock.offset !== null && Number.isFinite(mediaTiming.position) &&
         mediaTiming.position - songClock.offset < confirmedReport.playback.position - 2))) {
     return keepConfirmedReport();
   }
-  const timing = playbackTiming(videoId || `${title}\n${artist}`, times, mediaTiming, page);
+  const timing = playbackTiming(identity, times, mediaTiming, page);
   if (!timing) return keepConfirmedReport();
   const { position, duration } = timing;
   const displayArtist = activitySettings.displayMode === 'album' && activitySettings.showAlbum
@@ -309,7 +340,7 @@ function collect(page) {
   const buttons = [{ label: 'Play on YouTube Music', url }];
   const searchUrl = artistSearchUrl(artist);
   if (searchUrl) buttons.push({ label: 'Search artist', url: searchUrl });
-  const playing = Boolean(mediaSnapshot?.playing || isPlaying(video));
+  const playing = mediaTiming.playing;
   const report = {
     kind: 'song',
     media: { title, ...(artist ? { artist } : {}), ...(album ? { album } : {}) },
@@ -324,7 +355,7 @@ function collect(page) {
       position,
       duration,
       live: false,
-      rate: Number.isFinite(mediaSnapshot?.playbackRate) ? mediaSnapshot.playbackRate : Number.isFinite(video?.playbackRate) ? video.playbackRate : 1,
+      rate: mediaTiming.rate,
     },
     artwork: activitySettings.showArtwork ? {
       ...(artwork ? { large: artwork } : {}),
