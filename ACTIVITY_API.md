@@ -6,11 +6,18 @@ service integrations, including DOM access, page-context inspection, and
 declared external networking. V1 packages are installed from the official
 ChudPresence Activities repository or through the extension's Developer mode.
 
-Activities run in an isolated Firefox `USER_SCRIPT` world and use the
+Activities run in an isolated `USER_SCRIPT` world and use the
 restricted `ChudPresence` runtime. The extension owns Discord formatting,
 credentials, transport, and publishing. Activities do not receive Discord
 OAuth/session credentials, extension storage, or unrestricted `browser.*`
 access.
+
+The canonical package and report contract is
+[`schemas/activity-api-v1.json`](schemas/activity-api-v1.json). Its generated
+schemas, runtime constants, and TypeScript declarations are checked in under
+`schemas/`. Runtime behavior below reflects the companion Chromium Activity
+Lab implementation, which currently supports API version 1; browser-specific
+permission setup is described at the end.
 
 V1 is intended for trusted first-party code. A future public/community API may
 use a different trust and permission model. This document does not define that
@@ -27,11 +34,11 @@ activities/<activity-id>/
 
 Metadata requires `id`, `name`, `description`, semantic `version`,
 `apiVersion: 1`, HTTPS `matches`, and `entry: "activity.js"`. IDs are permanent
-and match `^[a-z0-9][a-z0-9-]{1,63}$`. Keep the Activity self-contained and
-under 512 KB.
+and match `^[a-z0-9][a-z0-9-]{1,63}$`. Keep the `activity.js` entry
+self-contained and at most 512 KiB.
 
-`matches` applies separately to each page frame. Metadata may set
-`"frames": "all"` to run the same bundled `activity.js` in every matching
+Registered-script `matches` applies separately to each page frame. Metadata may
+set `"frames": "all"` to run the same bundled `activity.js` in every matching
 frame; it defaults to `"top"`. Use `ChudPresence.runtime.frame.isTop` and the
 current page URL to decide which frame should report. For example, declare both
 the service page and embedded player host in `matches` to let a child frame
@@ -41,10 +48,15 @@ Optional discovery fields include `category`, searchable `aliases` and `tags`,
 `contributors`, `author`, `homepage`, `repository`, `serviceUrl`, and
 `defaultMediaKind`. `excludeMatches` removes URLs from the runtime scope even
 when they also match `matches`. Match, exclude, and network patterns are HTTPS
-URLs with a host and path: at most 32 unique patterns, each up to 256
-characters. A package builds to one self-contained `activity.js` entry;
+URLs with a host and path: each list allows at most 32 unique patterns, each up
+to 256 characters. Hosts may be exact or start with `*.` to include the base
+host and its subdomains; a bare `*` host is rejected. Paths may use `*`, but
+patterns cannot contain a query string, fragment, or backslash. The runtime
+matches the URL path and query together, so a trailing `*` also covers query
+parameters. A package builds to one self-contained `activity.js` entry;
 `frames: "all"` applies it to each matching frame. Metadata is limited to 64 KB
-and an optional icon to 256 KB.
+and an optional icon to 256 KB. Metadata, source, and icon limits are separate
+file limits.
 
 Optional `presence.kind` may be `music`, `video`, `streaming`, or `generic`.
 The runtime accepts that field but does not copy it onto the published track.
@@ -76,7 +88,12 @@ Chromium does not start a registered user script when a same-document History
 API navigation newly matches an Activity. The extension injects enabled
 Activities on those tab URL updates, including an update that also reports
 `status: loading`. Installing, enabling, reloading, or restoring an Activity
-also injects it into already-open matching tabs. Discarded tabs are skipped.
+also injects it into already-open tabs whose top URL matches. Discarded tabs are
+skipped during open-tab discovery. Explicit injection targets the top frame
+or, for `frames: "all"`, all available frames in that tab; it does not filter
+the execution target by each frame's URL. The runtime still checks every
+request against that frame's sender URL and rejects excluded or out-of-scope
+frames. Activities should check their page URL before observing or reporting.
 Injecting the same installed package into a document that is already running
 that package does not run the script again. Use `navigation.onChange()` for
 later route changes in that document. Reload and a new install capability run
@@ -99,11 +116,29 @@ ChudPresence.report({
 });
 ```
 
-Call `ChudPresence.clear()` when the page has no current activity. Reports use
-the nested `kind`, `media`, `playback`, `display`, `artwork`, `buttons`, and
-`visibility` model in `schemas/activity-report.schema.json`. `media.title` is
-required. If `display` is omitted, songs default to title / artist, episodes to
-series or title / episode title, movies to title, streams and videos to title /
+Call `ChudPresence.clear()` when the page has no current activity. It clears the
+current frame's report. Ordinary reports and clears schedule publication after
+250 ms; when no eligible presence remains, the extension allows a further
+1.5 seconds for playback to resume before publishing the clear. A returning
+report cancels that pending clear. On `pagehide` or `beforeunload`, the runtime
+attempts an internal closing clear before aborting the lifecycle and running
+Activity cleanup callbacks. Closing clears and tab removal use the immediate
+publication path. Activity code does not need to pass a closing option to
+`clear()`.
+
+`report()` and `clear()` return Promises for structured runtime responses. A
+successful report has `ok: true` and `data.accepted: true`; a clear returns
+`data.cleared` and `data.stale`. Validation and rate-limit failures return
+`ok: false` with an `error` containing `code` and `message`. Check `ok` when the
+Activity needs confirmation that a report was accepted.
+
+Reports use the nested `kind`, `media`, `playback`, `display`, `artwork`, `buttons`, and
+`visibility` model in `schemas/activity-report.schema.json`. `kind` and
+`media.title` are required. Supported media fields are `title`, `subtitle`,
+`artist`, `album`, `series`, `season`, `episode`, `creator`, `channel`,
+`category`, `game`, and `playlist`. Undeclared fields are rejected, including
+in nested objects. If `display` is omitted, songs default to title / artist,
+episodes to series or title / episode title, movies to title, streams and videos to title /
 creator or channel, games to the game name or title / category, and other kinds
 to title / subtitle. `display.statusDisplay` defaults to `details` and may be
 `name`, `details`, or `state`. Playback defaults to playing at position zero,
@@ -114,20 +149,26 @@ are published.
 Optional `display.detailsUrl` and `display.stateUrl` make the corresponding
 presence text clickable. `artwork.largeUrl` makes the large image clickable
 when `artwork.large` is present. For a song, use the song URL as `detailsUrl`,
-the displayed artist URL as `stateUrl`, and the album URL as `largeUrl`.
-These links are independent of the two-button limit and must be HTTPS URLs.
+the displayed artist or album URL as `stateUrl`, and the album URL as
+`largeUrl` when available. These links are independent of the two-button limit
+and must be HTTPS URLs.
 
-URLs must be HTTPS. Text fields are limited to 256 characters, playback values
-are bounded, buttons are limited to two with 32-character labels, and the
-serialized report is limited to 16 KB. Supported kinds are `video`, `movie`,
+Report URLs must use HTTPS, contain no credentials, and be at most 2048
+characters. Text fields are limited to 256 characters. `season` and `episode`
+are integers from 0 to 10000; playback `position` and `duration` are finite
+numbers from 0 to 31536000 seconds; `rate` is from 0 to 16. Playback states are
+`playing`, `paused`, and `stopped`. Buttons are limited to two with non-empty
+labels up to 32 characters, and the normalized serialized report is limited
+to 16 KB. Supported kinds are `video`, `movie`,
 `episode`, `song`, `stream`, `game`, and `generic`. Discord's activity type
 follows that kind: `song` is listening, `stream` is watching, `game` and
 `generic` are playing, and the other kinds are watching. Presence details,
 timestamps, artwork, and buttons are derived from generic report fields.
 Extension core does not format reports by Activity ID.
 
-`ChudPresence.runtime` exposes the registered `activityId`, Activity and API
-versions, extension version, a frame descriptor, and `has(feature)`.
+`ChudPresence.runtime` exposes the registered `activityId`, package
+`activityVersion`, `apiVersion`, `extensionVersion`, a frame descriptor, and
+`has(feature)`.
 `lifecycle` provides an abort signal, cleanup callbacks, and managed timers.
 `navigation.current` and `navigation.onChange()` observe SPA URL changes
 without replacing History API methods. A change callback receives
@@ -138,9 +179,10 @@ a playing, visible element that has not ended. `snapshot()` returns `playing`,
 `paused`, `ended`, `currentTime`, `duration`, `playbackRate`, `volume`, and
 `muted`, or `null`. `onChange()` can filter by `element` or event `type`, emit
 the current element when `immediate` is true, and stop on `signal`. Runtime
-capabilities can be checked with `runtime.has(feature)`.
+capabilities can be checked with `runtime.has(feature)`. The `frames`
+namespace is currently empty; `runtime.frame.isTop` is the exposed frame flag.
 
-`lifecycle.onUpgrade(({ fromVersion, toVersion }) => ...)` runs once for a
+`lifecycle.onUpgrade(({ fromVersion, toVersion }) => ...)` runs for a
 pending Activity version transition. Use it for migrations in this Activity's
 isolated storage. A completed transition is persisted; a migration error stays
 pending and appears in Developer diagnostics. A normal browser restart does
@@ -159,8 +201,8 @@ const title = await ChudPresence.page.execute(
 
 The function cannot use Activity-scope closures and must return synchronously.
 A returned Promise is rejected. Arguments must be an array;
-the function source and serialized arguments are each limited to 16 KB, and a
-serialized result is limited to 64 KB. Results cross a JSON serialization
+the function source and serialized arguments are each limited to 16384
+characters, and a serialized result is limited to 65536 characters. Results cross a JSON serialization
 boundary, so functions, cyclic values, `undefined`, and other non-JSON results
 are rejected. A thrown exception rejects the call with an `Error` carrying its
 `name`, `message`, and `code`. The runtime targets the requesting document by
@@ -168,9 +210,9 @@ its browser document ID and reports a stale-document error if navigation
 replaces it before execution returns.
 
 Page scripts can see and interfere with code and data passed through
-`page.execute`. The bridge is unavailable on Discord pages. It runs in
-Firefox's `MAIN` world, which has no WebExtension-only APIs, and does not expose
-ChudPresence's Discord credentials or extension storage.
+`page.execute`. The bridge is unavailable on Discord pages. It runs in the
+browser's `MAIN` world, which has no WebExtension-only APIs, and does not
+expose ChudPresence's Discord credentials or extension storage.
 `runtime.has('pageExecute')` reports whether this capability is present.
 
 `net.fetch(url, options)` makes a bounded request from the extension context.
@@ -267,20 +309,26 @@ URL query strings before display. `runtime.has('log')` reports this feature.
 
 Use ordinary DOM and media APIs when possible. Do not call Discord, read
 extension storage, load remote code, or assume another Activity is installed.
-The runtime assigns Activity identity, routes calls through structured
-messages, and validates every report. It checks the sending world, page URL,
-report shape, field sizes, and request rate. Each Activity may send 30 runtime
+Activity identity comes from the installed package's capability and, when
+Chromium provides it, its registered user-script world. It does not come from
+report data. The runtime routes calls through structured messages and validates
+every report. It checks the sending world, page URL, report shape, field sizes,
+and request rate. Each Activity may send 30 runtime
 requests per tab in a 10-second window. Each report remains tied to its tab,
 frame, document, and sender URL. Keep sending reports while playback continues:
-a frame that has not reported for 90 seconds is dropped and its presence is
-cleared. If the extension runtime disconnects, the script reconnects and
-resubmits its last report.
+a frame that has not reported for more than 90 seconds is dropped during
+stale-report pruning, and its presence is cleared. This leaves room for
+Chromium's throttled background-tab timers. If the extension runtime
+disconnects, the script retries the connection and resubmits its last report
+after reconnecting; ten consecutive connection failures or disconnects end
+the Activity lifecycle.
 
 A same-document History API URL change keeps that document eligible to report,
-including queued playback transitions. On Chromium, a tab loading update clears
-the published presence but does not retire the document ID, so the next report
-from the same document is accepted immediately. A report with a different
-document ID retires the previous document. Replacing the top document also
+including queued playback transitions. On Chromium, a tab loading update
+preserves the report and document ID, so the same document can continue
+reporting immediately. Its report remains valid until an Activity clear,
+document exit, replacement, discard, closure, or stale-report pruning. A report
+with a different document ID retires the previous document. Replacing the top document also
 retires reports from its child frames. Discarding or closing a tab retires its
 documents. The runtime ignores reports and clears from a retired document.
 Developer Mode shows frame state (`active`, `loading`, or `retired`), frame
@@ -288,10 +336,23 @@ IDs, URLs, and document IDs. Activities do not receive direct `browser.*` or
 `chrome.*` API references. Review of repository source and user approval of
 site access remain important parts of the trust model.
 
+## Permissions and compatibility
+
+The Chromium lab declares `userScripts` at install time and requires Chrome
+135 or newer. Chrome 138 or newer also requires **Allow User Scripts** on the
+extension's details page; older supported versions use Developer mode.
+Firefox may request `userScripts` permission separately from the Activity's
+declared site and network origins. The Library requests the validated host
+patterns before downloading a repository package. Hash verification detects
+mismatched or corrupted downloads; review of the Activity source determines
+whether to trust it.
+
 Catalogs may contain Activities for a newer runtime API. ChudPresence keeps
 those entries visible with a compatibility message while allowing supported
 Activities in the same catalog to install. Set `minExtensionVersion` when an
 Activity needs a specific extension release. Repository installs pin the
 catalog and package files to one immutable Git revision and save that revision
-with the installed source hashes. Changes to an Activity's package files
+with the installed metadata, script, and optional icon hashes. Updates preserve
+settings and per-Activity storage; a failed pre-commit update restores the old
+package and its live documents. Changes to an Activity's package files
 require a strictly higher semantic version; repository CI checks this rule.

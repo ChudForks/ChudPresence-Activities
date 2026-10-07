@@ -3,6 +3,23 @@ let lastSentAt = 0;
 let lastPlaybackState = 'none';
 let pendingState = '';
 let pendingStateSince = 0;
+let lastTrackIdentity = '';
+let timingIdentity = '';
+let previousBarTiming = null;
+let previousMediaTiming = null;
+let staleBarTiming = null;
+let staleMediaTiming = null;
+let previousPlayerTiming = null;
+let previousSeekTiming = null;
+let songClock = null;
+let confirmedReport = null;
+let confirmedAt = 0;
+let probing = false;
+let probeAgain = false;
+let probeTimerPending = false;
+let reportTimerPending = false;
+let lastProbeAt = -Infinity;
+let generation = 0;
 let activitySettings = { showAlbum: true, showArtwork: true, displayMode: 'artist' };
 // Expanding the player can briefly remove its title or pause the media element.
 const TRANSIENT_STATE_MS = 1250;
@@ -21,7 +38,19 @@ function parseClock(value) {
 
 function parseTimeInfo(value) {
   const [left, right] = String(value || '').replace(/\s+/g, ' ').trim().split('/');
-  return { position: parseClock(left), duration: parseClock(right) };
+  return { position: /^\d+(?::\d+)*$/.test(left?.trim() || '') ? parseClock(left) : null,
+    duration: parseClock(right) };
+}
+
+function seekTiming() {
+  const slider = document.querySelector('#progress-bar');
+  const positionText = slider?.getAttribute('aria-valuenow');
+  const durationText = slider?.getAttribute('aria-valuemax');
+  if (!positionText?.trim() || !durationText?.trim()) return null;
+  const position = Number(positionText);
+  const duration = Number(durationText);
+  return Number.isFinite(position) && position >= 0 && Number.isFinite(duration) &&
+    duration > 0 && position <= duration ? { position, duration } : null;
 }
 
 function videoIdFromHref(href) {
@@ -90,7 +119,131 @@ function isPlaying(video) {
   return false;
 }
 
-function collect() {
+function playerSnapshot() {
+  return ChudPresence.page.execute(() => {
+    const player = document.querySelector('#movie_player') ||
+      document.querySelector('ytmusic-player')?.playerApi;
+    if (!player) return null;
+    const data = player.getVideoData?.();
+    const response = player.getPlayerResponse?.() || player.getPresentingPlayerResponse?.();
+    const details = response?.videoDetails;
+    const videoId = String(data?.video_id || data?.videoId || details?.videoId || '');
+    if (!videoId) return null;
+    const playerDuration = player.getDuration?.();
+    const metadataDuration = !details?.videoId || details.videoId === videoId
+      ? Number(details?.lengthSeconds) : 0;
+    const position = player.getCurrentTime?.();
+    // Missing or mismatched metadata is not evidence that playback restarted.
+    return {
+      videoId,
+      title: String(data?.title || details?.title || ''),
+      responseVideoId: String(details?.videoId || ''),
+      metadataDuration: Number.isFinite(metadataDuration) && metadataDuration > 0 ? metadataDuration : 0,
+      duration: Number.isFinite(playerDuration) && playerDuration > 0 ? playerDuration : 0,
+      position: Number.isFinite(position) && position >= 0 ? position : null,
+    };
+  });
+}
+
+function currentTiming(timing, stale) {
+  return Number.isFinite(timing.position) && timing.duration > 0 && (!stale || timing.duration !== stale.duration ||
+    timing.position < stale.position - 1 || (timing.position <= 1 && stale.position <= 1));
+}
+
+function songTiming(identity, seek, media) {
+  const mediaPosition = media.position;
+  if (!songClock || songClock.identity !== identity) {
+    if (!seek) return songClock ? null : undefined;
+    if (timingIdentity && identity !== timingIdentity && !currentTiming(seek, previousSeekTiming)) return null;
+    songClock = { identity, duration: seek.duration,
+      offset: Number.isFinite(mediaPosition) ? mediaPosition - seek.position : null,
+      mediaPosition };
+    previousSeekTiming = seek;
+    return seek;
+  }
+
+  const freshSeek = seek?.duration === songClock.duration ? seek : null;
+  if (!Number.isFinite(mediaPosition)) return freshSeek || null;
+  if (songClock.offset === null) {
+    if (!freshSeek) return null;
+    songClock.offset = mediaPosition - freshSeek.position;
+  }
+  let position = mediaPosition - songClock.offset;
+  if (freshSeek && Math.abs(position - freshSeek.position) >= 2) {
+    const reset = Number.isFinite(songClock.mediaPosition) && mediaPosition < songClock.mediaPosition - 2;
+    const restarted = freshSeek.position <= 1 && previousSeekTiming?.position > 1;
+    // A queued song can reset the slider before the current audio ends. A real
+    // repeat either resets the media clock or crosses this song's end boundary.
+    const newTimeline = position < -1 && (freshSeek.position !== previousSeekTiming?.position ||
+      previousSeekTiming?.position <= 1);
+    if ((reset && (freshSeek.position < previousSeekTiming?.position - 1 || newTimeline)) ||
+        (restarted && position >= songClock.duration)) {
+      songClock.offset = mediaPosition - freshSeek.position;
+      position = freshSeek.position;
+    }
+  }
+  if (position < -1) return null;
+  songClock.mediaPosition = mediaPosition;
+  if (freshSeek && Math.abs(position - freshSeek.position) < 2) previousSeekTiming = freshSeek;
+  return { position: Math.max(0, Math.min(songClock.duration, position)), duration: songClock.duration };
+}
+
+function playbackTiming(identity, barTiming, mediaTiming, page) {
+  // YTM's gapless video can expose a cumulative playlist timeline whose duration
+  // grows as the next songs buffer. The seek slider is relative to this song.
+  // Calibrate once, then advance from the audio clock even if background DOM freezes.
+  const song = songTiming(identity, seekTiming(), mediaTiming);
+  if (song !== undefined) {
+    if (song) timingIdentity = identity;
+    return song;
+  }
+  const changing = Boolean(timingIdentity && identity !== timingIdentity);
+  const oldBar = changing ? previousBarTiming : staleBarTiming;
+  const oldMedia = changing ? previousMediaTiming : staleMediaTiming;
+  const barCurrent = currentTiming(barTiming, oldBar);
+  const mediaCurrent = currentTiming(mediaTiming, oldMedia);
+  let timing = null;
+  let playerTiming = null;
+  if (page?.videoId) {
+    if (page.videoId !== identity) return null;
+    playerTiming = { position: page.position, duration: page.duration };
+    const previous = previousPlayerTiming || previousMediaTiming || previousBarTiming;
+    if (changing && previous?.duration > 0 && (
+      (page.responseVideoId && page.responseVideoId !== identity) ||
+      (page.metadataDuration > 0 && Math.abs(page.duration - page.metadataDuration) >= 2) ||
+      !currentTiming(playerTiming, previous)
+    )) return null;
+    if (currentTiming(playerTiming, null)) {
+      timing = playerTiming;
+      // Page-player data can preload while the current audio clock still advances.
+      if (!changing && mediaCurrent && Math.abs(playerTiming.position - mediaTiming.position) >= 2) {
+        timing = mediaTiming;
+        playerTiming = null;
+      }
+    }
+  }
+  // Background rendering can freeze the bar while audio and media events continue.
+  if (!timing) timing = document.hidden && mediaCurrent ? mediaTiming
+    : barCurrent ? barTiming : mediaCurrent ? mediaTiming : null;
+  if (!timing && confirmedReport?.playback.duration > 0) return null;
+  timingIdentity = identity;
+  staleBarTiming = barCurrent ? null : oldBar;
+  staleMediaTiming = mediaCurrent ? null : oldMedia;
+  if (barCurrent) previousBarTiming = barTiming;
+  if (mediaCurrent) previousMediaTiming = mediaTiming;
+  if (playerTiming && currentTiming(playerTiming, null)) previousPlayerTiming = playerTiming;
+  return timing || { position: 0, duration: 0 };
+}
+
+function keepConfirmedReport() {
+  if (!confirmedReport) return null;
+  const playback = confirmedReport.playback;
+  const elapsed = playback.state === 'playing' ? Math.max(0, Date.now() - confirmedAt) / 1000 * playback.rate : 0;
+  return { ...confirmedReport, playback: { ...playback,
+    position: playback.duration > 0 ? Math.min(playback.duration, playback.position + elapsed) : playback.position } };
+}
+
+function collect(page) {
   if (isAd()) return null;
   const bar = document.querySelector('ytmusic-player-bar');
   const video = document.querySelector('video') || ChudPresence.media.find();
@@ -102,7 +255,7 @@ function collect() {
     album: sessionMetadata.album || '',
     artwork: [...(sessionMetadata.artwork || [])].map((item) => ({ src: item.src, sizes: item.sizes || '' })),
   } : {};
-  const title = textOf(bar?.querySelector('.title')) || metadata.title || '';
+  let title = textOf(bar?.querySelector('.title')) || metadata.title || '';
   if (!title) return null;
 
   const bylineLinks = [...(bar?.querySelectorAll('.byline a, .subtitle a') || [])]
@@ -124,16 +277,28 @@ function collect() {
     videoIdFromHref(image?.closest('a')?.href) ||
     videoIdFromHref(document.querySelector('link[rel="canonical"]')?.href) ||
     videoIdFromHref(document.querySelector('ytmusic-player a[href*="watch"]')?.href) ||
-    videoIdFromThumb(image?.src) || '';
+    videoIdFromThumb(image?.src) || page?.videoId || '';
+  if (page?.videoId && page.videoId !== videoId) return keepConfirmedReport();
+  if (confirmedReport && videoId !== timingIdentity && title === confirmedReport.media.title) {
+    if (page?.title && metadata.title === page.title) title = metadata.title;
+    else if (!page?.title || page.title !== title) return keepConfirmedReport();
+  }
   const times = parseTimeInfo(textOf(bar?.querySelector('.time-info')));
-  const position = times.duration > 0
-    ? times.position
-    : Number.isFinite(mediaSnapshot?.currentTime) ? mediaSnapshot.currentTime
-      : Number.isFinite(video?.currentTime) ? video.currentTime : 0;
-  const duration = times.duration > 0
-    ? times.duration
-    : Number.isFinite(mediaSnapshot?.duration) && mediaSnapshot.duration > 0 ? mediaSnapshot.duration
-      : Number.isFinite(video?.duration) && video.duration > 0 ? video.duration : 0;
+  const mediaTiming = {
+    position: Number.isFinite(mediaSnapshot?.currentTime) ? mediaSnapshot.currentTime
+      : Number.isFinite(video?.currentTime) ? video.currentTime : null,
+    duration: Number.isFinite(mediaSnapshot?.duration) && mediaSnapshot.duration > 0 ? mediaSnapshot.duration
+      : Number.isFinite(video?.duration) && video.duration > 0 ? video.duration : 0,
+  };
+  if (confirmedReport && videoId === timingIdentity && (video?.ended || video?.readyState === 0) &&
+      ((Number.isFinite(page?.position) && page.position < confirmedReport.playback.position - 2) ||
+       (songClock?.identity === videoId && songClock.offset !== null && Number.isFinite(mediaTiming.position) &&
+        mediaTiming.position - songClock.offset < confirmedReport.playback.position - 2))) {
+    return keepConfirmedReport();
+  }
+  const timing = playbackTiming(videoId || `${title}\n${artist}`, times, mediaTiming, page);
+  if (!timing) return keepConfirmedReport();
+  const { position, duration } = timing;
   const displayArtist = activitySettings.displayMode === 'album' && activitySettings.showAlbum
     ? album || artist
     : artist;
@@ -145,7 +310,7 @@ function collect() {
   const searchUrl = artistSearchUrl(artist);
   if (searchUrl) buttons.push({ label: 'Search artist', url: searchUrl });
   const playing = Boolean(mediaSnapshot?.playing || isPlaying(video));
-  return {
+  const report = {
     kind: 'song',
     media: { title, ...(artist ? { artist } : {}), ...(album ? { album } : {}) },
     display: {
@@ -169,11 +334,12 @@ function collect() {
     } : {},
     buttons,
   };
+  confirmedReport = report;
+  confirmedAt = Date.now();
+  return report;
 }
 
-function tick() {
-  if (ChudPresence.lifecycle.signal.aborted) return;
-  const report = collect();
+function send(report) {
   const now = Date.now();
   const nextState = report?.playback.state || 'none';
   const uncertainState = !isAd() && lastPlaybackState !== 'none' &&
@@ -190,14 +356,54 @@ function tick() {
     pendingState = '';
   }
   const serialized = report ? JSON.stringify(report) : '';
+  const identity = report?.display.detailsUrl || report?.media.title || '';
   if (serialized === lastSerialized && now - lastSentAt < 8000) return;
-  if (report && nextState === lastPlaybackState && now - lastSentAt < 1000) return;
+  if (report && identity === lastTrackIdentity && nextState === lastPlaybackState && now - lastSentAt < 1000) {
+    if (!reportTimerPending) {
+      reportTimerPending = true;
+      ChudPresence.lifecycle.timeout(() => { reportTimerPending = false; tick(); }, 1000 - (now - lastSentAt));
+    }
+    return;
+  }
   pendingState = '';
   lastSerialized = serialized;
   lastSentAt = now;
   lastPlaybackState = nextState;
+  lastTrackIdentity = identity;
   if (report) ChudPresence.report(report);
   else ChudPresence.clear();
+}
+
+function tick() {
+  if (ChudPresence.lifecycle.signal.aborted) return;
+  if (!ChudPresence.runtime.has('pageExecute')) {
+    send(collect(null));
+    return;
+  }
+  if (probing) {
+    probeAgain = true;
+    return;
+  }
+  const delay = 750 - (Date.now() - lastProbeAt);
+  if (delay > 0) {
+    if (!probeTimerPending) {
+      probeTimerPending = true;
+      ChudPresence.lifecycle.timeout(() => { probeTimerPending = false; tick(); }, delay);
+    }
+    return;
+  }
+  probing = true;
+  lastProbeAt = Date.now();
+  const currentGeneration = generation;
+  playerSnapshot().catch(() => null).then((page) => {
+    if (!ChudPresence.lifecycle.signal.aborted && currentGeneration === generation) send(collect(page));
+  }).finally(() => {
+    probing = false;
+    if (probeAgain) {
+      probeAgain = false;
+      tick();
+    }
+  });
 }
 
 const observer = new MutationObserver(tick);
@@ -214,6 +420,8 @@ function observePlayerBar() {
 observePlayerBar();
 ChudPresence.lifecycle.interval(tick, 2000);
 ChudPresence.navigation.onChange(() => {
+  generation += 1;
+  lastProbeAt = -Infinity;
   lastSerialized = null;
   observePlayerBar();
   tick();

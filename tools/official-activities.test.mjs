@@ -63,7 +63,7 @@ async function runActivity(id, {
   const ChudPresence = {
     report(report) { reports.push(report); return Promise.resolve(); },
     clear() { reports.push(null); return Promise.resolve(); },
-    runtime: { has(feature) { return feature === 'pageExecute'; } },
+    runtime: { has(feature) { return feature === 'pageExecute' && typeof pageExecute === 'function'; } },
     page: { execute(fn, args) { return Promise.resolve(pageExecute?.(fn, args) ?? null); } },
     lifecycle: {
       signal: { aborted: false },
@@ -531,6 +531,559 @@ test('YouTube Music keeps presence through brief player layout and playback chan
   selectors['ytmusic-player-bar'] = bar;
   activity.mediaChange();
   assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  activity.cleanup();
+});
+
+function musicPlayerReader(page) {
+  const player = {
+    getVideoData() { return { video_id: page.videoId, title: page.title }; },
+    getPlayerResponse() { return { videoDetails: {
+      videoId: page.responseVideoId || page.videoId, lengthSeconds: String(page.metadataDuration),
+    } }; },
+    getDuration() { return page.duration; },
+    getCurrentTime() { return page.position; },
+  };
+  return (fn) => vm.runInNewContext(`(${fn.toString()})()`, {
+    document: { querySelector(selector) { return selector === '#movie_player' ? player : null; } },
+  });
+}
+
+function musicSeekSlider(clock) {
+  return {
+    value: '', max: '',
+    getAttribute(name) {
+      return name === 'aria-valuenow' ? String(clock.position)
+        : name === 'aria-valuemax' ? String(clock.duration) : null;
+    },
+  };
+}
+
+test('YouTube Music reads song timing from seek attributes instead of the cumulative playlist video', async () => {
+  const clock = { position: 180, duration: 278 };
+  const video = { currentTime: 662.884159, duration: 759.897777, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=woz5qvDdMRM',
+    metadata: { mediaSession: { title: 'Beneath the Mask', artist: 'Lyn' } },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock) },
+    pageExecute: () => null,
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 180);
+  assert.equal(activity.reports.at(-1).playback.duration, 278);
+  video.currentTime += 2;
+  video.duration = 1139.275554;
+  clock.position = 182;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 182);
+  assert.equal(activity.reports.at(-1).playback.duration, 278, 'buffering more songs cannot extend this song');
+  activity.cleanup();
+});
+
+test('YouTube Music advances a frozen background slider with a fixed song duration', async () => {
+  const clock = { position: 218, duration: 241 };
+  const video = { currentTime: 460, duration: 482, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    metadata: { mediaSession: { title: 'No More What Ifs' } },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock) },
+  });
+  activity.document.hidden = true;
+  video.currentTime = 464;
+  video.duration = 760;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 222);
+  assert.equal(activity.reports.at(-1).playback.duration, 241);
+  video.currentTime = 470;
+  video.duration = 1000;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 228);
+  assert.equal(activity.reports.at(-1).playback.duration, 241);
+  clock.position = 230;
+  video.currentTime = 472;
+  activity.document.hidden = false;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 230);
+  assert.equal(activity.reports.at(-1).playback.duration, 241);
+  activity.cleanup();
+});
+
+test('YouTube Music waits for the new song clock then recalibrates across cumulative playlist songs', async () => {
+  const session = { title: 'No More What Ifs' };
+  const clock = { position: 218, duration: 241 };
+  const video = { currentTime: 460, duration: 482, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock) },
+  });
+  activity.document.hidden = true;
+  session.title = 'Beneath the Mask';
+  video.currentTime = 462;
+  video.duration = 759.897777;
+  activity.navigate('https://music.youtube.com/watch?v=woz5qvDdMRM');
+  assert.equal(activity.reports.at(-1).media.title, 'No More What Ifs');
+  assert.equal(activity.reports.at(-1).playback.duration, 241);
+  clock.position = 0;
+  clock.duration = 278;
+  video.currentTime = 482.897777;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).media.title, 'Beneath the Mask');
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.duration, 278);
+  video.currentTime += 13;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 13);
+  session.title = 'KOMM, SUSSER TOD';
+  clock.position = 2;
+  clock.duration = 467;
+  video.currentTime = 761.897777;
+  video.duration = 1139.275554;
+  activity.navigate('https://music.youtube.com/watch?v=rQiHzcdUPAU');
+  assert.equal(activity.reports.at(-1).media.title, session.title);
+  assert.equal(activity.reports.at(-1).playback.position, 2);
+  assert.equal(activity.reports.at(-1).playback.duration, 467);
+  activity.cleanup();
+});
+
+test('YouTube Music ignores a preloaded slider reset until the current audio actually changes', async () => {
+  const session = { title: 'Taking Off' };
+  const clock = { position: 202, duration: 218 };
+  const video = { currentTime: 444, duration: 700, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock) },
+  });
+  clock.position = 0;
+  video.currentTime = 446;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).media.title, 'Taking Off');
+  assert.equal(activity.reports.at(-1).playback.position, 204);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  clock.duration = 240;
+  video.currentTime = 448;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 206);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  session.title = 'Next song';
+  video.currentTime = 460;
+  activity.navigate('https://music.youtube.com/watch?v=lmnopqrstuv');
+  assert.equal(activity.reports.at(-1).media.title, 'Next song');
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.duration, 240);
+  activity.cleanup();
+});
+
+test('YouTube Music handles a seek and a real repeat on a cumulative playlist clock', async () => {
+  const clock = { position: 202, duration: 218 };
+  const video = { currentTime: 444, duration: 700, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    metadata: { mediaSession: { title: 'Taking Off' } },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock) },
+  });
+  clock.position = 0;
+  video.currentTime = 242;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  clock.position = 217;
+  video.currentTime = 459;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 217);
+  clock.position = 0;
+  video.currentTime = 460;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  video.currentTime = 462;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 2);
+  activity.cleanup();
+});
+
+test('YouTube Music keeps the calibrated clock when the seek control disappears temporarily', async () => {
+  const clock = { position: 180, duration: 278 };
+  const video = { currentTime: 663, duration: 760, paused: false, ended: false, playbackRate: 1 };
+  const selectors = { video, '#progress-bar': musicSeekSlider(clock) };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', selectors,
+    metadata: { mediaSession: { title: 'Beneath the Mask' } },
+  });
+  delete selectors['#progress-bar'];
+  video.currentTime = 667;
+  video.duration = 1139;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 184);
+  assert.equal(activity.reports.at(-1).playback.duration, 278);
+  activity.cleanup();
+});
+
+test('YouTube Music waits for actual playback after an ended cumulative media clock resets', async () => {
+  const clock = { position: 202, duration: 218 };
+  const video = { currentTime: 444, duration: 700, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    metadata: { mediaSession: { title: 'Taking Off' } },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock) },
+  });
+  clock.position = 0;
+  video.currentTime = 0;
+  video.ended = true;
+  activity.advance();
+  assert.ok(activity.reports.at(-1).playback.position >= 202);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  video.ended = false;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  activity.cleanup();
+});
+
+test('YouTube Music recovers when the new seek clock appears before the old video clock resets', async () => {
+  const session = { title: 'Previous song' };
+  const clock = { position: 217, duration: 218 };
+  const video = { currentTime: 459, duration: 700, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock) },
+  });
+  session.title = 'Beneath the Mask';
+  clock.position = 0;
+  clock.duration = 278;
+  activity.navigate('https://music.youtube.com/watch?v=woz5qvDdMRM');
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  video.currentTime = 0;
+  video.duration = 278;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  clock.position = 2;
+  video.currentTime = 2;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).media.title, 'Beneath the Mask');
+  assert.equal(activity.reports.at(-1).playback.position, 2);
+  assert.equal(activity.reports.at(-1).playback.duration, 278);
+  activity.cleanup();
+});
+
+test('YouTube Music recalibrates when the same song switches from a playlist timeline to its own video', async () => {
+  const clock = { position: 180, duration: 278 };
+  const video = { currentTime: 663, duration: 760, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    metadata: { mediaSession: { title: 'Beneath the Mask' } },
+    selectors: { video, '#progress-bar': musicSeekSlider(clock) },
+  });
+  video.currentTime = 182;
+  video.duration = 278;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.duration, 278);
+  clock.position = 184;
+  video.currentTime = 184;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 184);
+  assert.equal(activity.reports.at(-1).playback.duration, 278);
+  activity.cleanup();
+});
+
+test('YouTube Music keeps the current clock when metadata duration changes near the end', async () => {
+  const session = { title: 'Taking Off', artist: 'ONE OK ROCK' };
+  const page = { videoId: 'abcdefghijk', title: session.title, duration: 218, metadataDuration: 218, position: 202 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    pageExecute: musicPlayerReader(page),
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 202);
+  page.metadataDuration = 221;
+  page.position = 204;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Taking Off');
+  assert.equal(activity.reports.at(-1).playback.position, 204);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  activity.cleanup();
+});
+
+test('YouTube Music keeps the old song and progress while the next URL and player data preload', async () => {
+  const session = { title: 'Taking Off', artist: 'ONE OK ROCK' };
+  const video = { currentTime: 202, duration: 218, paused: false, ended: false, playbackRate: 1 };
+  const page = { videoId: 'abcdefghijk', title: session.title, duration: 218, metadataDuration: 218, position: 202 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    selectors: { video }, pageExecute: musicPlayerReader(page),
+  });
+  await flushActivity();
+  activity.navigate('https://music.youtube.com/watch?v=lmnopqrstuv');
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Taking Off');
+  assert.ok(activity.reports.at(-1).playback.position >= 202);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  page.videoId = 'lmnopqrstuv';
+  page.title = 'Next song';
+  page.metadataDuration = 240;
+  page.position = 204;
+  video.currentTime = 204;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Taking Off');
+  assert.ok(activity.reports.at(-1).playback.position >= 202);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  assert.equal(activity.reports.at(-1).buttons[0].url, 'https://music.youtube.com/watch?v=abcdefghijk');
+  session.title = page.title;
+  page.duration = 240;
+  page.position = 0;
+  video.duration = 240;
+  video.currentTime = 0;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Next song');
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.duration, 240);
+  activity.cleanup();
+});
+
+test('YouTube Music uses the media clock instead of zero when a player read is incomplete', async () => {
+  const session = { title: 'Taking Off' };
+  const video = { currentTime: 202, duration: 218, paused: false, ended: false, playbackRate: 1 };
+  const page = { videoId: 'abcdefghijk', title: session.title, duration: 218, metadataDuration: 218, position: 202 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    selectors: { video }, pageExecute: musicPlayerReader(page),
+  });
+  await flushActivity();
+  activity.document.hidden = true;
+  page.duration = undefined;
+  page.position = undefined;
+  video.currentTime = 204;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 204);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  activity.cleanup();
+});
+
+test('YouTube Music ignores a premature player clock reset while the current audio still plays', async () => {
+  const session = { title: 'Taking Off' };
+  const video = { currentTime: 202, duration: 218, paused: false, ended: false, playbackRate: 1 };
+  const page = { videoId: 'abcdefghijk', title: session.title, duration: 218, metadataDuration: 218, position: 202 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    selectors: { video }, pageExecute: musicPlayerReader(page),
+  });
+  await flushActivity();
+  page.position = 0;
+  page.responseVideoId = 'lmnopqrstuv';
+  video.currentTime = 204;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Taking Off');
+  assert.equal(activity.reports.at(-1).playback.position, 204);
+  assert.equal(activity.reports.at(-1).playback.duration, 218);
+  activity.cleanup();
+});
+
+test('YouTube Music accepts a real seek to zero within the same song', async () => {
+  const session = { title: 'Taking Off' };
+  const video = { currentTime: 202, duration: 218, paused: false, ended: false, playbackRate: 1 };
+  const page = { videoId: 'abcdefghijk', title: session.title, duration: 218, metadataDuration: 218, position: 202 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    selectors: { video }, pageExecute: musicPlayerReader(page),
+  });
+  await flushActivity();
+  page.position = 0;
+  video.currentTime = 0;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Taking Off');
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  activity.cleanup();
+});
+
+test('YouTube Music keeps an ended song at its old progress until a real repeat starts', async () => {
+  const session = { title: 'Taking Off' };
+  const video = { currentTime: 202, duration: 218, paused: false, ended: false, playbackRate: 1 };
+  const page = { videoId: 'abcdefghijk', title: session.title, duration: 218, metadataDuration: 218, position: 202 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    selectors: { video }, pageExecute: musicPlayerReader(page),
+  });
+  await flushActivity();
+  video.ended = true;
+  video.currentTime = 0;
+  page.position = 0;
+  activity.advance();
+  await flushActivity();
+  assert.ok(activity.reports.at(-1).playback.position >= 202);
+  video.ended = false;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  activity.cleanup();
+});
+
+test('YouTube Music uses the current player clock while a background player bar is stale', async () => {
+  const session = { title: 'Previous song', artist: 'Artist' };
+  const clock = { textContent: '2:55 / 2:55' };
+  const video = { currentTime: 175, duration: 175, paused: false, ended: false, playbackRate: 1 };
+  const player = { videoId: 'abcdefghijk', position: 175, duration: 175 };
+  const bar = {
+    querySelector(selector) { return selector === '.time-info' ? clock : null; },
+    querySelectorAll() { return []; },
+  };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    selectors: { 'ytmusic-player-bar': bar, video },
+    metadata: { mediaSession: session },
+    pageExecute: () => ({ ...player }),
+  });
+  await flushActivity();
+  activity.document.hidden = true;
+  session.title = 'Right In Two';
+  activity.navigate('https://music.youtube.com/watch?v=lmnopqrstuv');
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Previous song');
+  assert.equal(activity.reports.at(-1).playback.duration, 175, 'keep the confirmed song until its replacement is ready');
+  player.videoId = 'lmnopqrstuv';
+  player.position = 0;
+  player.duration = 535;
+  activity.mediaChange();
+  await flushActivity();
+  activity.elapse(1000);
+  await flushActivity();
+  const next = activity.reports.at(-1);
+  assert.equal(next.playback.position, 0, 'zero is a valid new-track position');
+  assert.equal(next.playback.duration, 535);
+  player.position = 12;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 12);
+  assert.equal(activity.reports.at(-1).playback.duration, 535);
+  assert.equal(clock.textContent, '2:55 / 2:55');
+  activity.cleanup();
+});
+
+test('YouTube Music rejects an old media clock while player metadata changes', async () => {
+  const session = { title: 'Previous song', artist: 'Artist' };
+  const page = { id: 'abcdefghijk', responseId: 'abcdefghijk', length: '175', duration: 175, position: 174 };
+  const player = {
+    getVideoData() { return { video_id: page.id }; },
+    getPlayerResponse() { return { videoDetails: { videoId: page.responseId, lengthSeconds: page.length } }; },
+    getDuration() { return page.duration; },
+    getCurrentTime() { return page.position; },
+  };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    metadata: { mediaSession: session },
+    pageExecute(fn) {
+      return vm.runInNewContext(`(${fn.toString()})()`, {
+        document: { querySelector(selector) { return selector === '#movie_player' ? player : null; } },
+      });
+    },
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.duration, 175);
+  page.id = 'lmnopqrstuv';
+  session.title = 'Right In Two';
+  activity.navigate('https://music.youtube.com/watch?v=lmnopqrstuv');
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Previous song');
+  assert.equal(activity.reports.at(-1).playback.duration, 175);
+  page.responseId = page.id;
+  page.length = '535';
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Previous song');
+  assert.equal(activity.reports.at(-1).playback.duration, 175);
+  page.duration = 535;
+  page.position = 5;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 5);
+  activity.cleanup();
+});
+
+test('YouTube Music waits for the clock to reset when consecutive songs have the same duration', async () => {
+  const session = { title: 'Previous song' };
+  const player = { videoId: 'abcdefghijk', duration: 175, position: 70 };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    pageExecute: () => ({ ...player }),
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 70);
+  session.title = 'Next song';
+  player.videoId = 'lmnopqrstuv';
+  activity.navigate('https://music.youtube.com/watch?v=lmnopqrstuv');
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Previous song');
+  assert.ok(activity.reports.at(-1).playback.position >= 70);
+  assert.equal(activity.reports.at(-1).playback.duration, 175);
+  player.position = 0;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Next song');
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  player.position = 5;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 5);
+  activity.cleanup();
+});
+
+test('YouTube Music discards a player read that completes after navigation', async () => {
+  const session = { title: 'Previous song', artist: 'Artist' };
+  let finishRead;
+  let reads = 0;
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk', metadata: { mediaSession: session },
+    pageExecute() {
+      reads += 1;
+      if (reads === 1) return new Promise((resolve) => { finishRead = resolve; });
+      return { videoId: 'lmnopqrstuv', duration: 535, position: 0 };
+    },
+  });
+  session.title = 'Right In Two';
+  activity.navigate('https://music.youtube.com/watch?v=lmnopqrstuv');
+  finishRead({ videoId: 'abcdefghijk', duration: 175, position: 174 });
+  await flushActivity();
+  assert.equal(activity.reports.length, 1);
+  assert.equal(activity.reports[0].media.title, 'Right In Two');
+  assert.equal(activity.reports[0].playback.duration, 535);
+  assert.equal(activity.reports[0].playback.position, 0);
+  activity.cleanup();
+});
+
+test('YouTube Music suppresses stale fallback clocks after a skip and recovers without the page bridge', async () => {
+  const session = { title: 'Previous song', artist: 'Artist' };
+  const clock = { textContent: '2:55 / 2:55' };
+  const video = { currentTime: 175, duration: 175, paused: false, ended: false, playbackRate: 1 };
+  const bar = {
+    querySelector(selector) { return selector === '.time-info' ? clock : null; },
+    querySelectorAll() { return []; },
+  };
+  const activity = await runActivity('youtube-music', {
+    url: 'https://music.youtube.com/watch?v=abcdefghijk',
+    selectors: { 'ytmusic-player-bar': bar, video }, metadata: { mediaSession: session },
+  });
+  activity.document.hidden = true;
+  session.title = 'Right In Two';
+  activity.navigate('https://music.youtube.com/watch?v=lmnopqrstuv');
+  assert.equal(activity.reports.at(-1).media.title, 'Previous song');
+  assert.equal(activity.reports.at(-1).playback.duration, 175);
+  video.currentTime = 0;
+  video.duration = 535;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.duration, 535);
+  video.currentTime = 12;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 12);
+  clock.textContent = '0:14 / 8:55';
+  activity.document.hidden = false;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 14);
+  assert.equal(activity.reports.at(-1).playback.duration, 535);
   activity.cleanup();
 });
 
