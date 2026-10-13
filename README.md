@@ -51,7 +51,7 @@ request `userScripts` permission separately from the declared origins.
 
 ## Current catalog
 
-The checked-in catalog contains seven API v1 packages. This snapshot was checked
+The checked-in catalog contains eight API v1 packages. This snapshot was checked
 on October 2, 2026; `catalog.json` and each package's `metadata.json` are the
 source for later versions and permission declarations.
 
@@ -61,6 +61,7 @@ source for later versions and permission declarations.
 | [Crunchyroll](activities/crunchyroll) | 1.0.8 | Anime episodes and movies, display order and artwork settings, SPA navigation and media observation |
 | [Hulu](activities/hulu) | 1.0.9 | Watch-page movies and episodes, early metadata, episode artwork and timelines, detail-page discovery with retry backoff |
 | [Kick](activities/kick) | 1.0.1 | Live channels and recorded videos, playback state, service links and artwork |
+| [SoundCloud](activities/soundcloud) | 1.0.1 | Songs from the persistent miniplayer, artist links, cover artwork, play/pause state, seeking, and background progress; no album line |
 | [Twitch](activities/twitch) | 1.0.1 | Live channels and recorded videos, playback state, service links and artwork |
 | [YouTube](activities/youtube) | 1.0.2 | Videos, Shorts and live streams, page-player inspection, advertisement clearing and stale-player protection |
 | [YouTube Music](activities/youtube-music) | 1.0.9 | Songs, artist or album display, clickable song/byline/cover links, pause artwork and a 1.25-second grace for transient player changes |
@@ -86,6 +87,24 @@ The Kick icon is the PNG linked as the Apple touch icon by `https://kick.com/`
 The Twitch icon is the purple Glitch PNG from Twitch's press center
 (`https://www.twitch.tv/p/press-center/assets/media/glitch.zip`).
 The Hulu icon was taken from Hulu's official App Store listing.
+The SoundCloud icon is the Apple touch icon linked from SoundCloud's web player
+(`https://a-v2.sndcdn.com/assets/images/sc-icons/ios-a62dfc8fe7.png`).
+
+SoundCloud observes `soundcloud.com` and `www.soundcloud.com` in the top frame
+and requests no network bridge access. Its current miniplayer exposes progress
+in seconds even when the audio element is detached from the DOM. Track and artist
+links come from that player, so browsing Discover, search, or a different track
+does not replace the playing song. The Activity clears hidden/absent players,
+explicit advertisement states, finished playback, and private sharing links.
+Artwork can be disabled in the Activity's settings; paused artwork uses the
+shared pause badge. Embedded `w.soundcloud.com` widgets are outside this package's
+scope.
+
+To test SoundCloud locally in the Chromium lab, select
+`activities/soundcloud/metadata.json`, `activity.js`, and `icon.png` together in
+**Activity Library → Developer → Load local Activity**, then approve its declared
+SoundCloud website access. Local catalog changes reach Discover after the
+Activities repository is published and the catalog is refreshed.
 
 ## Contribute
 
@@ -133,7 +152,7 @@ reselect its package files in Developer mode and use **Load local Activity**.
 **Reload Activity** reruns the source already stored by the extension; it does
 not reread files from disk. The CLI does not install or reload the extension.
 
-The seven checked-in official packages are authored directly as `activity.js`,
+The eight checked-in official packages are authored directly as `activity.js`,
 without `src/` or per-package `tests/` directories. Validate one with
 `npm run activity -- validate youtube`; exercise their synthetic-page tests
 with `npm test`. The CLI's `build`, `dev`, and `test` commands require the

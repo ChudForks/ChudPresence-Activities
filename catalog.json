@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-13T21:16:05.980Z",
+  "generatedAt": "2026-10-13T22:00:13.305Z",
   "activities": [
     {
       "id": "67movies",
@@ -220,6 +220,55 @@
       "metadataSha256": "258acfca913d4290ad7c3237045be99830b6bb17aa705d1bbdea727be20d5a85",
       "icon": "activities/kick/icon.png",
       "iconSha256": "da4eab2da290778ef9f8af74256c257f04f29f1e458388e6ccdf882bbb8529ca"
+    },
+    {
+      "id": "soundcloud",
+      "name": "SoundCloud",
+      "description": "Show the current SoundCloud song, artist, artwork, and playback progress.",
+      "version": "1.0.1",
+      "apiVersion": 1,
+      "category": "music",
+      "author": {
+        "name": "ChudPresence"
+      },
+      "aliases": [
+        "Sound Cloud"
+      ],
+      "tags": [
+        "music",
+        "audio",
+        "streaming"
+      ],
+      "serviceUrl": "https://soundcloud.com/",
+      "presence": {
+        "kind": "music"
+      },
+      "defaultMediaKind": "song",
+      "settings": [
+        {
+          "id": "showArtwork",
+          "type": "boolean",
+          "label": "Show artwork",
+          "default": true
+        }
+      ],
+      "settingsUi": {
+        "statusLabels": {
+          "app": "SoundCloud",
+          "artist": "Artist",
+          "track": "Song title"
+        }
+      },
+      "matches": [
+        "https://soundcloud.com/*",
+        "https://www.soundcloud.com/*"
+      ],
+      "entry": "activities/soundcloud/activity.js",
+      "metadata": "activities/soundcloud/metadata.json",
+      "sha256": "1bc5ab480cfe724357f4d15177999ddca4632ef9cf1b0b863c770fdfaa0a9f26",
+      "metadataSha256": "453364aab6aa90543cb2de2a1a5affa042b3e9cd141e8a3c103cf38068853958",
+      "icon": "activities/soundcloud/icon.png",
+      "iconSha256": "608fb5818e36946c66fe5173146d4ae81489a8bc3ec5cb8801093aa0123a3cd1"
     },
     {
       "id": "twitch",

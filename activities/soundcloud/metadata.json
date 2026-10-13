@@ -1,0 +1,23 @@
+{
+  "id": "soundcloud",
+  "name": "SoundCloud",
+  "description": "Show the current SoundCloud song, artist, artwork, and playback progress.",
+  "version": "1.0.1",
+  "apiVersion": 1,
+  "author": { "name": "ChudPresence" },
+  "category": "music",
+  "defaultMediaKind": "song",
+  "aliases": ["Sound Cloud"],
+  "tags": ["music", "audio", "streaming"],
+  "serviceUrl": "https://soundcloud.com/",
+  "matches": ["https://soundcloud.com/*", "https://www.soundcloud.com/*"],
+  "entry": "activity.js",
+  "icon": "icon.png",
+  "presence": { "kind": "music" },
+  "settingsUi": {
+    "statusLabels": { "app": "SoundCloud", "artist": "Artist", "track": "Song title" }
+  },
+  "settings": [
+    { "id": "showArtwork", "type": "boolean", "label": "Show artwork", "default": true }
+  ]
+}

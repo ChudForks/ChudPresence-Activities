@@ -7,6 +7,194 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// Mirrors SoundCloud's October 2026 miniplayer DOM: audio is detached, title
+// text includes a screen-reader duplicate, and the timeline uses seconds.
+function soundcloudPlayer() {
+  const state = { title: 'First song', artist: 'Test artist', href: '/test-artist/first-song',
+    artistHref: '/test-artist', position: '61', duration: '263', playing: true,
+    visible: true, ad: false, background: 'url("https://i1.sndcdn.com/artworks-example-t50x50.jpg")' };
+  const titleLink = {
+    get href() { return state.href; },
+    get textContent() { return `Current track: ${state.title}${state.title}`; },
+    getAttribute(name) { return name === 'title' ? state.title : null; },
+    querySelector() { return { textContent: state.title }; },
+  };
+  const artistLink = {
+    get href() { return state.artistHref; },
+    get textContent() { return state.artist; },
+    getAttribute(name) { return name === 'title' ? state.artist : null; },
+  };
+  const control = { classList: { contains(name) { return name === 'playing' && state.playing; } } };
+  const progress = { getAttribute(name) {
+    return { 'aria-valuenow': state.position, 'aria-valuemax': state.duration }[name] ?? null;
+  } };
+  const bar = {
+    classList: { contains(name) { return name === 'm-visible' && state.visible; } },
+    getAttribute() { return null; },
+    matches() { return state.ad; },
+    querySelector(selector) {
+      return {
+        '.playbackSoundBadge__titleLink': titleLink,
+        '.playbackSoundBadge__lightLink': artistLink,
+        '.playControls__play': control,
+        '.playbackTimeline__progressWrapper': progress,
+        '.playbackSoundBadge__avatar .image__full': { style: { backgroundImage: state.background } },
+      }[selector] || null;
+    },
+  };
+  return { state, bar };
+}
+
+test('SoundCloud reports the miniplayer song while browsing Discover', async () => {
+  const { bar } = soundcloudPlayer();
+  const activity = await runActivity('soundcloud', {
+    url: 'https://soundcloud.com/discover', selectors: { '.playControls': bar },
+    metadata: { title: 'Unrelated Media Session title', artist: 'Unrelated artist' },
+  });
+  const report = activity.reports.at(-1);
+  assert.equal(report.kind, 'song');
+  assert.equal(report.media.title, 'First song');
+  assert.equal(report.media.artist, 'Test artist');
+  assert.equal(report.playback.position, 61);
+  assert.equal(report.playback.duration, 263);
+  assert.equal(report.display.detailsUrl, 'https://soundcloud.com/test-artist/first-song');
+  assert.equal(report.display.stateUrl, 'https://soundcloud.com/test-artist');
+  assert.equal(report.artwork.large, 'https://i1.sndcdn.com/artworks-example-t500x500.jpg');
+  assert.equal(report.artwork.largeUrl, report.display.detailsUrl);
+  assert.equal(report.artwork.largeText, '');
+  assert.equal(report.media.album, undefined);
+  assert.equal(report.buttons.length, 2);
+  activity.navigate('https://soundcloud.com/search?q=unrelated');
+  activity.advance();
+  assert.equal(activity.reports.at(-1).display.detailsUrl, report.display.detailsUrl);
+});
+
+test('SoundCloud follows pause, resume, seek, and queue changes', async () => {
+  const { state, bar } = soundcloudPlayer();
+  const activity = await runActivity('soundcloud', {
+    url: 'https://soundcloud.com/', selectors: { '.playControls': bar },
+    mediaSessionState: 'playing',
+  });
+  state.playing = false;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  assert.equal(activity.reports.at(-1).artwork.smallText, 'Paused');
+  state.playing = true;
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  assert.equal(activity.reports.at(-1).artwork.small, undefined);
+  state.position = '120';
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 120);
+  state.title = 'Second song';
+  state.href = '/test-artist/second-song?in=test-artist/sets/mix#t=0:00';
+  state.position = '0';
+  state.duration = '180';
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).media.title, 'Second song');
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.duration, 180);
+  assert.equal(activity.reports.at(-1).display.detailsUrl, 'https://soundcloud.com/test-artist/second-song');
+});
+
+test('SoundCloud advances frozen background progress and accepts seeks and pauses', async () => {
+  const { state, bar } = soundcloudPlayer();
+  const activity = await runActivity('soundcloud', {
+    url: 'https://soundcloud.com/', selectors: { '.playControls': bar },
+  });
+  activity.document.hidden = true;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 63);
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 65);
+  state.position = '10';
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 10);
+  state.playing = false;
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 10);
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 10);
+  state.playing = true;
+  state.position = '262';
+  activity.advance();
+  activity.advance();
+  assert.equal(activity.reports.at(-1).playback.position, 263);
+});
+
+test('SoundCloud clears absent, hidden, advertising, ended, and private players', async () => {
+  for (const change of [
+    (state) => { state.visible = false; },
+    (state) => { state.ad = true; },
+    (state) => { state.playing = false; state.position = state.duration; },
+    (state) => { state.href = '/test-artist/first-song?secret_token=s-private'; },
+    (state) => { state.href = '/test-artist/first-song/s-private'; },
+    (state) => { state.href = 'https://example.com/test-artist/first-song'; },
+    (state) => { state.href = 'http://soundcloud.com/test-artist/first-song'; },
+    (state) => { state.href = 'https://user:password@soundcloud.com/test-artist/first-song'; },
+    (state) => { state.href = '/test-artist/sets'; },
+    (state) => { state.title = ''; },
+  ]) {
+    const { state, bar } = soundcloudPlayer();
+    const activity = await runActivity('soundcloud', {
+      url: 'https://soundcloud.com/', selectors: { '.playControls': bar },
+    });
+    assert.ok(activity.reports.at(-1));
+    change(state);
+    activity.mediaChange();
+    assert.equal(activity.reports.at(-1), null);
+  }
+  const idle = await runActivity('soundcloud', {
+    url: 'https://soundcloud.com/test-artist/first-song',
+    metadata: { title: 'Metadata alone is not playback' },
+  });
+  assert.equal(idle.reports.at(-1), null);
+});
+
+test('SoundCloud settings, malformed timelines, and unsafe artwork stay within V1', async () => {
+  const { state, bar } = soundcloudPlayer();
+  const activity = await runActivity('soundcloud', {
+    url: 'https://www.soundcloud.com/', selectors: { '.playControls': bar },
+  });
+  activity.settings({ settings: { showArtwork: false } });
+  assert.equal(Object.keys(activity.reports.at(-1).artwork).length, 0);
+  state.position = 'Infinity';
+  state.duration = '-10';
+  state.artist = 'Artist'.repeat(100);
+  state.title = 'Title'.repeat(100);
+  state.background = 'url("javascript:alert(1)")';
+  state.artistHref = 'https://example.com/artist';
+  activity.settings({ settings: { showArtwork: true } });
+  const report = activity.reports.at(-1);
+  assert.equal(report.playback.position, 0);
+  assert.equal(report.playback.duration, 0);
+  assert.equal(report.media.title.length, 256);
+  assert.equal(report.media.artist.length, 256);
+  assert.equal(report.artwork.large, undefined);
+  assert.equal(report.display.stateUrl, undefined);
+  assert.equal(report.buttons.length, 1);
+  activity.cleanup();
+  assert.equal(activity.reports.at(-1), null);
+});
+
+test('SoundCloud coalesces progress events and keeps paused reports alive', async () => {
+  const { state, bar } = soundcloudPlayer();
+  const activity = await runActivity('soundcloud', {
+    url: 'https://soundcloud.com/', selectors: { '.playControls': bar },
+  });
+  state.position = '62';
+  activity.mediaChange();
+  assert.equal(activity.reports.at(-1).playback.position, 61);
+  activity.elapse(500);
+  assert.equal(activity.reports.at(-1).playback.position, 62);
+  state.playing = false;
+  activity.mediaChange();
+  const count = activity.reports.length;
+  for (let index = 0; index < 4; index += 1) activity.advance();
+  assert.equal(activity.reports.length, count + 1);
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+});
+
 function youtubePlayer(video) {
   return { querySelector(selector) { return selector.startsWith('video') ? video : null; } };
 }

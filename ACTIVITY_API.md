@@ -152,6 +152,8 @@ when `artwork.large` is present. For a song, use the song URL as `detailsUrl`,
 the displayed artist or album URL as `stateUrl`, and the album URL as
 `largeUrl` when available. These links are independent of the two-button limit
 and must be HTTPS URLs.
+Set `artwork.largeText` to an empty string to omit the artwork text (the third
+line in Discord's music card). Omitting the field uses album or title text.
 
 Report URLs must use HTTPS, contain no credentials, and be at most 2048
 characters. Text fields are limited to 256 characters. `season` and `episode`
