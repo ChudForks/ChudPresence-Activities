@@ -109,8 +109,7 @@ function collect() {
   const liveBadge = document.querySelector(
     '[data-testid="live-badge"], [data-testid="livestream-badge"], [data-testid="stream-is-live"], .live-badge',
   );
-  const live = !vod && Boolean(video?.duration === Infinity ||
-    (!Number.isFinite(video?.duration) && liveBadge));
+  const live = !vod && Boolean(video?.duration === Infinity || liveBadge);
   if (!video && !live) return null;
 
   const session = mediaSession();

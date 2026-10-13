@@ -1470,6 +1470,45 @@ test('YouTube package treats a regular video as watching when a reusable live ba
   activity.cleanup();
 });
 
+test('YouTube trusts a player seek to zero and paused state over stale DOM playback', async () => {
+  const video = { currentTime: 90, duration: 480, paused: false, ended: false, playbackRate: 1 };
+  const page = { videoId: 'abcdefghijk', title: 'A recorded video', position: 0,
+    duration: 480, state: 2, live: false, ad: false };
+  const activity = await runActivity('youtube', {
+    url: 'https://www.youtube.com/watch?v=abcdefghijk',
+    selectors: { '#movie_player video.html5-main-video': video },
+    pageExecute: () => page,
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 0);
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  page.state = 0;
+  page.position = 480;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  activity.cleanup();
+});
+
+test('YouTube falls back to DOM playback when player timing and state are unavailable', async () => {
+  const video = { currentTime: 90, duration: 480, paused: false, ended: false, playbackRate: 1 };
+  const player = { getVideoData() { return { video_id: 'abcdefghijk', title: 'A recorded video' }; } };
+  const activity = await runActivity('youtube', {
+    url: 'https://www.youtube.com/watch?v=abcdefghijk',
+    selectors: { '#movie_player video.html5-main-video': video },
+    pageExecute(fn) {
+      return vm.runInNewContext(`(${fn.toString()})()`, {
+        document: { querySelector() { return player; } },
+      });
+    },
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.position, 90);
+  assert.equal(activity.reports.at(-1).playback.duration, 480);
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  activity.cleanup();
+});
+
 test('YouTube package reports live playback and ignores a stale player after navigation', async () => {
   const video = { currentTime: 90, duration: 600, paused: false, ended: false, playbackRate: 1 };
   const page = { videoId: 'abcdefghijk', title: 'Live now', author: 'A Channel', position: 90,
@@ -1598,6 +1637,32 @@ test('Twitch package reports a VOD despite a channel live indicator', async () =
   assert.equal(activity.reports.at(-1).playback.state, 'paused');
   activity.cleanup();
 });
+
+for (const [id, videoSelector, titleSelector, badgeSelector, url] of [
+  ['kick', 'video[data-testid="video-player"], .vjs-tech, .video-js video, video',
+    '[data-testid="livestream-title"]',
+    '[data-testid="live-badge"], [data-testid="livestream-badge"], [data-testid="stream-is-live"], .live-badge',
+    'https://kick.com/streamer'],
+  ['twitch', 'video[data-a-target="player-video"], .video-player video, video',
+    '[data-a-target="stream-title"]',
+    '[data-a-target="player-live-badge"], [data-test-selector="live-indicator"]',
+    'https://www.twitch.tv/streamer'],
+]) {
+  test(`${id} reports a finite live DVR window as a stream`, async () => {
+    const activity = await runActivity(id, {
+      url,
+      selectors: {
+        [videoSelector]: { duration: 300, currentTime: 295, paused: false, ended: false, playbackRate: 1 },
+        [titleSelector]: { textContent: 'Live stream title' },
+        [badgeSelector]: {},
+      },
+    });
+    assert.equal(activity.reports.at(-1).kind, 'stream');
+    assert.equal(activity.reports.at(-1).playback.live, true);
+    assert.equal(activity.reports.at(-1).playback.duration, 0);
+    activity.cleanup();
+  });
+}
 
 test('67Movies package reports a movie from the watch URL and TMDB metadata', async () => {
   const fetches = [];

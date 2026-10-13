@@ -10,6 +10,7 @@ import {
   MAX_ACTIVITY_ICON_BYTES,
   MAX_ACTIVITY_METADATA_BYTES,
   MAX_ACTIVITY_SOURCE_BYTES,
+  MAX_ACTIVITY_URL_LENGTH,
   PRESENCE_KIND_VALUES,
 } from '../schemas/activity-contract.generated.js';
 
@@ -108,6 +109,16 @@ function reservedNetworkPattern(pattern) {
   return ['discord.com', 'discordapp.com', 'discordapp.net'].some((domain) => host === domain || host?.endsWith(`.${domain}`));
 }
 
+function validHttpsUrl(value) {
+  if (typeof value !== 'string' || !/^https:\/\//.test(value) || value.length > MAX_ACTIVITY_URL_LENGTH) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 export function validateMetadata(metadata, directoryName, metadataText = JSON.stringify(metadata)) {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
     throw new Error(`${directoryName}: metadata must be a JSON object.`);
@@ -123,7 +134,7 @@ export function validateMetadata(metadata, directoryName, metadataText = JSON.st
     throw new Error(`${directoryName}: name and description are required and must fit their size limits.`);
   }
   const versionMatch = (metadata.version || '').match(versionPattern);
-  const validPrerelease = !versionMatch?.[4] || versionMatch[4].split('.').every((part) =>
+  const validPrerelease = !versionMatch?.[4] || versionMatch[4].slice(1).split('.').every((part) =>
     !/^\d+$/.test(part) || part === '0' || !part.startsWith('0'),
   );
   if (!versionMatch || !validPrerelease || !Number.isInteger(metadata.apiVersion) || metadata.apiVersion < 1) {
@@ -131,7 +142,7 @@ export function validateMetadata(metadata, directoryName, metadataText = JSON.st
   }
   if (metadata.minExtensionVersion !== undefined) {
     const minimum = String(metadata.minExtensionVersion).match(versionPattern);
-    const validMinimum = !minimum?.[4] || minimum[4].split('.').every((part) =>
+    const validMinimum = !minimum?.[4] || minimum[4].slice(1).split('.').every((part) =>
       !/^\d+$/.test(part) || part === '0' || !part.startsWith('0'),
     );
     if (!minimum || !validMinimum) throw new Error(`${directoryName}: minExtensionVersion must be a semantic version.`);
@@ -164,7 +175,7 @@ export function validateMetadata(metadata, directoryName, metadataText = JSON.st
       (!Array.isArray(metadata.contributors) || metadata.contributors.length > 16 || metadata.contributors.some((person) =>
         !person || typeof person !== 'object' || Array.isArray(person) || typeof person.name !== 'string' || !person.name.trim() ||
         person.name.length > 80 || Object.keys(person).some((key) => !['name', 'url'].includes(key)) ||
-        (person.url !== undefined && (!/^https:\/\//.test(person.url) || new URL(person.url).protocol !== 'https:'))))) {
+        (person.url !== undefined && !validHttpsUrl(person.url))))) {
     throw new Error(`${directoryName}: contributors must contain up to 16 names with optional HTTPS URLs.`);
   }
   if (metadata.network !== undefined &&
@@ -191,6 +202,9 @@ export function validateMetadata(metadata, directoryName, metadataText = JSON.st
        metadata.author.name.length > 80 || Object.keys(metadata.author).some((key) => !['name', 'url'].includes(key)))) {
     throw new Error(`${directoryName}: author must have a name and may have a URL.`);
   }
+  if (metadata.author?.url !== undefined && !validHttpsUrl(metadata.author.url)) {
+    throw new Error(`${directoryName}: author URL must be an HTTPS URL up to ${MAX_ACTIVITY_URL_LENGTH} characters without credentials.`);
+  }
   if (metadata.presence !== undefined &&
       (!metadata.presence || typeof metadata.presence !== 'object' || Array.isArray(metadata.presence) ||
        Object.keys(metadata.presence).some((key) => key !== 'kind') ||
@@ -215,12 +229,8 @@ export function validateMetadata(metadata, directoryName, metadataText = JSON.st
   }
   validateSettings(metadata.settings, directoryName);
   for (const field of ['homepage', 'repository', 'serviceUrl']) {
-    if (metadata[field] !== undefined) {
-      try {
-        if (new URL(metadata[field]).protocol !== 'https:') throw new Error();
-      } catch {
-        throw new Error(`${directoryName}: ${field} must be an HTTPS URL.`);
-      }
+    if (metadata[field] !== undefined && !validHttpsUrl(metadata[field])) {
+      throw new Error(`${directoryName}: ${field} must be an HTTPS URL up to ${MAX_ACTIVITY_URL_LENGTH} characters without credentials.`);
     }
   }
 }

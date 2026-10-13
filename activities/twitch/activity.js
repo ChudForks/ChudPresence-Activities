@@ -121,12 +121,11 @@ function collect() {
   const video = document.querySelector('video[data-a-target="player-video"], .video-player video, video') ||
     ChudPresence.media.find();
   const snapshot = video ? ChudPresence.media.snapshot(video) : null;
-  const vod = vodRoute || (Number.isFinite(video?.duration) && video.duration > 0);
   const liveBadge = document.querySelector(
-    '[data-a-target="stream-title"], [data-a-target="player-live-badge"], [data-test-selector="live-indicator"]',
+    '[data-a-target="player-live-badge"], [data-test-selector="live-indicator"]',
   );
-  const live = !vod && Boolean(video?.duration === Infinity ||
-    (channel && !Number.isFinite(video?.duration) && liveBadge));
+  const live = !vodRoute && Boolean(video?.duration === Infinity || (channel && liveBadge));
+  const vod = vodRoute || (!live && Number.isFinite(video?.duration) && video.duration > 0);
   if (!video && !live) return null;
 
   const session = mediaSession();

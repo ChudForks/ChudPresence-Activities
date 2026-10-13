@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-07T22:28:35.257Z",
+  "generatedAt": "2026-10-13T16:17:24.695Z",
   "activities": [
     {
       "id": "67movies",
@@ -184,7 +184,7 @@
       "id": "kick",
       "name": "Kick",
       "description": "Show the live stream or video playing on Kick.",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "apiVersion": 1,
       "category": "streaming",
       "author": {
@@ -216,8 +216,8 @@
       ],
       "entry": "activities/kick/activity.js",
       "metadata": "activities/kick/metadata.json",
-      "sha256": "adcb58b8c2750e38aec8a496181699df1a7e0e7b1a987dbf211e2b20bb42dd3a",
-      "metadataSha256": "11c22e444935eefdee3574fc331ac0c9af32ac7a6ba50a709feed4747c09452a",
+      "sha256": "8fdac6d0f340048407671b3f56183181d88d03186c53051b1c68103e49201f3f",
+      "metadataSha256": "258acfca913d4290ad7c3237045be99830b6bb17aa705d1bbdea727be20d5a85",
       "icon": "activities/kick/icon.png",
       "iconSha256": "da4eab2da290778ef9f8af74256c257f04f29f1e458388e6ccdf882bbb8529ca"
     },
@@ -225,7 +225,7 @@
       "id": "twitch",
       "name": "Twitch",
       "description": "Show the live stream or recorded video playing on Twitch.",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "apiVersion": 1,
       "category": "streaming",
       "author": {
@@ -257,8 +257,8 @@
       ],
       "entry": "activities/twitch/activity.js",
       "metadata": "activities/twitch/metadata.json",
-      "sha256": "63236f6f2c9e5a6d6755891a2485307db7a98181de7fb5ac8308733cbee9cae0",
-      "metadataSha256": "2aef177c2dda40580b34a53e6bad3b4a00e91b19d44ac1cf4568968c4ee25aab",
+      "sha256": "b647a0c7531853ace481ac592a34e0a8e9f45924bb7119a8831753508f348672",
+      "metadataSha256": "857ffdf255fb376bd4408b845c9f95320bffe7b948a9832364e29e925ef20399",
       "icon": "activities/twitch/icon.png",
       "iconSha256": "1d44a9af3da79a72543fd48e5d8466c54409a6e15d5b97944619a4e37184bca6"
     },
@@ -266,7 +266,7 @@
       "id": "youtube",
       "name": "YouTube",
       "description": "Show YouTube videos, Shorts, and live streams as an Activity.",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "apiVersion": 1,
       "category": "video",
       "author": {
@@ -300,8 +300,8 @@
       ],
       "entry": "activities/youtube/activity.js",
       "metadata": "activities/youtube/metadata.json",
-      "sha256": "80fef5def3ae85547be107865cfb53ed0422d0d4fa536297a0b043d0ad7c3640",
-      "metadataSha256": "ed9de876273c3d0d0f580e888a633e51bca20e9ab423c9aabf0863dc456d4662",
+      "sha256": "e44c6b110973d15ace475cb69f48a66367ff155f2d3a66128e25c94428d10959",
+      "metadataSha256": "71982ec5ed17d2ced1a9aad68b78e5c784df21ca254e20bf94ffddf97db634be",
       "icon": "activities/youtube/icon.png",
       "iconSha256": "fc098ac5d0282c91cb26cf25d63dcd598c515d41986a4afa13f6a6d1d7d73268"
     },

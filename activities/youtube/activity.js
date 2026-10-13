@@ -136,7 +136,7 @@ async function playerSnapshot() {
   return ChudPresence.page.execute(() => {
     const player = document.querySelector('#movie_player, #shorts-player, .html5-video-player');
     if (!player) return null;
-    const result = { videoId: '', title: '', author: '', position: 0, duration: 0,
+    const result = { videoId: '', title: '', author: '', position: null, duration: null,
       state: null, live: false, ad: false };
     try {
       result.ad = Boolean(player.classList?.contains('ad-showing') ||
@@ -189,11 +189,11 @@ function collect(page) {
   const live = page?.live === true || video?.duration === Infinity || (!page && domLive(video));
   const duration = live ? 0 : page?.duration || (Number.isFinite(videoDuration) && videoDuration > 0 ? videoDuration : 0);
   const videoPosition = Number.isFinite(snapshot?.currentTime) ? snapshot.currentTime : video?.currentTime;
-  const position = Number.isFinite(page?.position) && page.position > 0
+  const position = Number.isFinite(page?.position) && page.position >= 0
     ? page.position : Number.isFinite(videoPosition) && videoPosition >= 0 ? videoPosition : 0;
-  const playing = Boolean(video && !video.paused && !video.ended) ||
-    (!video || !video.ended) && (page?.state === 1 || page?.state === 3 ||
-      (!video && session?.playbackState === 'playing'));
+  const playerState = [-1, 0, 1, 2, 3, 5].includes(page?.state) ? page.state : null;
+  const playing = playerState !== null ? playerState === 1 || playerState === 3
+    : video ? !video.paused && !video.ended : session?.playbackState === 'playing';
   const fallbackImage = httpsUrl(`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`);
   const image = bestArtwork(metadata?.artwork, fallbackImage);
   const watchUrl = shorts
