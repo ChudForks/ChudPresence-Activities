@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-13T16:17:24.695Z",
+  "generatedAt": "2026-10-13T19:28:33.118Z",
   "activities": [
     {
       "id": "67movies",
@@ -266,7 +266,7 @@
       "id": "youtube",
       "name": "YouTube",
       "description": "Show YouTube videos, Shorts, and live streams as an Activity.",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "apiVersion": 1,
       "category": "video",
       "author": {
@@ -300,8 +300,8 @@
       ],
       "entry": "activities/youtube/activity.js",
       "metadata": "activities/youtube/metadata.json",
-      "sha256": "e44c6b110973d15ace475cb69f48a66367ff155f2d3a66128e25c94428d10959",
-      "metadataSha256": "71982ec5ed17d2ced1a9aad68b78e5c784df21ca254e20bf94ffddf97db634be",
+      "sha256": "cb10cc53e20e49f122c710c4edcf2309518a50b9d0e48334112397011c433793",
+      "metadataSha256": "1697790f9afaad6c5bcbf795e1a8286d11159e5798ae4fe25c9974566daf9ca9",
       "icon": "activities/youtube/icon.png",
       "iconSha256": "fc098ac5d0282c91cb26cf25d63dcd598c515d41986a4afa13f6a6d1d7d73268"
     },

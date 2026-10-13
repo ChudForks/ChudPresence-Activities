@@ -212,7 +212,12 @@ function collect(page) {
       live,
       rate: Number.isFinite(rate) && rate >= 0 && rate <= 16 ? rate : 1,
     },
-    display: { details: title, state: creator },
+    display: {
+      details: title,
+      detailsUrl: watchUrl,
+      state: creator,
+      ...(channel ? { stateUrl: channel } : {}),
+    },
     artwork: image ? { large: image, largeText: title } : {},
     buttons: [
       { label: shorts ? 'Watch Short' : 'Watch on YouTube', url: watchUrl },
