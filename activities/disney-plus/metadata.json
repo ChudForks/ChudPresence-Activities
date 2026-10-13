@@ -1,0 +1,23 @@
+{
+  "id": "disney-plus",
+  "name": "Disney+",
+  "description": "Show the movie or episode playing on Disney+.",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": { "name": "ChudPresence" },
+  "category": "video",
+  "defaultMediaKind": "episode",
+  "aliases": ["Disney+", "Disney Plus", "DisneyPlus"],
+  "tags": ["movies", "tv", "streaming"],
+  "serviceUrl": "https://www.disneyplus.com/",
+  "matches": ["https://www.disneyplus.com/*", "https://disneyplus.com/*"],
+  "entry": "activity.js",
+  "icon": "icon.png",
+  "presence": { "kind": "video" },
+  "settingsUi": {
+    "statusLabels": { "app": "Disney+", "artist": "Series", "track": "Episode" }
+  },
+  "settings": [
+    { "id": "showArtwork", "type": "boolean", "label": "Show artwork", "default": true }
+  ]
+}

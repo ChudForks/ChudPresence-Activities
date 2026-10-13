@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-13T22:00:13.305Z",
+  "generatedAt": "2026-10-13T22:24:17.011Z",
   "activities": [
     {
       "id": "67movies",
@@ -124,6 +124,57 @@
       "metadataSha256": "5814cc4de7487d33058bc2f1a7c8725cfe824eab59d4160daf0a2c4fcc38f029",
       "icon": "activities/crunchyroll/icon.png",
       "iconSha256": "c82119ef8bdc7d60867e69d38291efb58737a5a4248154e6d14fb6ab4a19761f"
+    },
+    {
+      "id": "disney-plus",
+      "name": "Disney+",
+      "description": "Show the movie or episode playing on Disney+.",
+      "version": "1.0.0",
+      "apiVersion": 1,
+      "category": "video",
+      "author": {
+        "name": "ChudPresence"
+      },
+      "aliases": [
+        "Disney+",
+        "Disney Plus",
+        "DisneyPlus"
+      ],
+      "tags": [
+        "movies",
+        "tv",
+        "streaming"
+      ],
+      "serviceUrl": "https://www.disneyplus.com/",
+      "presence": {
+        "kind": "video"
+      },
+      "defaultMediaKind": "episode",
+      "settings": [
+        {
+          "id": "showArtwork",
+          "type": "boolean",
+          "label": "Show artwork",
+          "default": true
+        }
+      ],
+      "settingsUi": {
+        "statusLabels": {
+          "app": "Disney+",
+          "artist": "Series",
+          "track": "Episode"
+        }
+      },
+      "matches": [
+        "https://www.disneyplus.com/*",
+        "https://disneyplus.com/*"
+      ],
+      "entry": "activities/disney-plus/activity.js",
+      "metadata": "activities/disney-plus/metadata.json",
+      "sha256": "263efa58dd06c7ad8bcd3e705cc553a92e7395af80462ae2c0562711500e96e3",
+      "metadataSha256": "2b07ddee614bd854e1f32e5bd2d08c6d1828f11a4b07d6d7affe01621a90f417",
+      "icon": "activities/disney-plus/icon.png",
+      "iconSha256": "b58d06685518f21a1c86868e832c7dfd0da3763f542a438b9a561cf50319630a"
     },
     {
       "id": "hulu",

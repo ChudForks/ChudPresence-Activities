@@ -7,6 +7,222 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// Disney's custom player fields and named video are read in the MAIN world.
+// Execute the actual bridge function so these fixtures cover extraction too.
+function disneyPlayer() {
+  const state = { title: 'The Mandalorian', subtitle: 'S1:E2 Chapter 2: The Child', ad: false };
+  const video = { currentTime: 9999, duration: Infinity, paused: false, ended: false, playbackRate: 1 };
+  const timeline = { playheadPositionMs: 125000, programDurationMs: 1800000 };
+  const metadata = {
+    title: { get text() { return state.title; } },
+    subtitle: { get text() { return state.subtitle; } },
+    images_experience: { standard: { tile: {
+      '1.78': { imageId: 'wide-art' }, '1.00': { imageId: 'square-art' },
+    } } },
+  };
+  const player = {
+    mediaPlayer: { mediaPlaybackCriteria: { metadata }, timeline: { info: timeline } },
+    querySelector(selector) {
+      if (selector === '.title-field') return { textContent: state.title };
+      if (selector === '.subtitle-field') return { textContent: state.subtitle };
+      return null;
+    },
+    querySelectorAll() { return state.ad ? [{ getAttribute() { return null; } }] : []; },
+  };
+  return { state, video, timeline, metadata, player,
+    selectors: { 'disney-web-player': player, 'video[id^="hivePlayer"]': video } };
+}
+
+test('Disney+ native episodes use Hulu presentation, square artwork, and the content timeline', async () => {
+  const fixture = disneyPlayer();
+  const activity = await runActivity('disney-plus', {
+    url: 'https://www.disneyplus.com/en-us/play/episode-one?tracking=private#player',
+    selectors: fixture.selectors, pageExecute: (fn) => fn(),
+  });
+  await flushActivity();
+  const report = activity.reports.at(-1);
+  assert.equal(report.kind, 'episode');
+  assert.equal(report.media.title, 'Chapter 2: The Child');
+  assert.equal(report.media.series, 'The Mandalorian');
+  assert.equal(report.media.season, 1);
+  assert.equal(report.media.episode, 2);
+  assert.equal(report.display.details, 'Chapter 2: The Child');
+  assert.equal(report.display.state, 'The Mandalorian');
+  assert.equal(report.playback.state, 'playing');
+  assert.equal(report.playback.position, 125);
+  assert.equal(report.playback.duration, 1800);
+  assert.match(report.artwork.large, /\/square-art\/compose\?/);
+  assert.equal(report.artwork.largeText, 'Season 1, Episode 2 • Chapter 2: The Child');
+  assert.equal(report.buttons[0].label, 'Watch on Disney+');
+  assert.equal(report.buttons[0].url, 'https://www.disneyplus.com/en-us/play/episode-one');
+  assert.equal(report.buttons[1].url, 'https://www.disneyplus.com/');
+  activity.cleanup();
+});
+
+test('Disney+ movies ignore stale episode metadata and respect pauses, seeks, and artwork settings', async () => {
+  const fixture = disneyPlayer();
+  fixture.state.title = 'Moana';
+  fixture.state.subtitle = '2016';
+  const activity = await runActivity('disney-plus', {
+    url: 'https://disneyplus.com/play/movie-one', selectors: fixture.selectors,
+    metadata: { '@type': 'TVEpisode', name: 'Old Episode', partOfSeries: { name: 'Old Series' } },
+    pageExecute: (fn) => fn(),
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).kind, 'movie');
+  assert.equal(activity.reports.at(-1).media.title, 'Moana');
+  assert.equal(activity.reports.at(-1).media.series, undefined);
+  fixture.video.paused = true;
+  fixture.timeline.playheadPositionMs = 30000;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  assert.equal(activity.reports.at(-1).playback.position, 30);
+  // A paused video wins even if the browser Media Session still says playing.
+  activity.settings({ settings: { showArtwork: false } });
+  await flushActivity();
+  assert.equal(Object.keys(activity.reports.at(-1).artwork).length, 0);
+  activity.settings({ settings: { showArtwork: true } });
+  await flushActivity();
+  assert.match(activity.reports.at(-1).artwork.large, /square-art/);
+  const count = activity.reports.length;
+  for (let i = 0; i < 4; i += 1) { activity.advance(); await flushActivity(); }
+  assert.equal(activity.reports.length, count + 1);
+  fixture.video.ended = true;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1), null);
+  activity.cleanup();
+});
+
+test('Disney+ legacy video routes use structured metadata when the page bridge is unavailable', async () => {
+  const video = { currentTime: 12, duration: 90, paused: false, ended: false, playbackRate: 1.5,
+    poster: 'https://images.example.com/poster.png' };
+  const activity = await runActivity('disney-plus', {
+    url: 'https://www.disneyplus.com/video/legacy-id', selectors: { video },
+    metadata: { '@graph': [{ '@type': 'TVEpisode', name: 'The Rescue', episodeNumber: 8,
+      partOfSeries: { name: 'The Mandalorian' }, partOfSeason: { seasonNumber: 2 },
+      image: [{ url: 'https://images.example.com/episode.png' }] }] },
+  });
+  const report = activity.reports.at(-1);
+  assert.equal(report.kind, 'episode');
+  assert.equal(report.display.details, 'The Rescue');
+  assert.equal(report.display.state, 'The Mandalorian');
+  assert.equal(report.media.season, 2);
+  assert.equal(report.media.episode, 8);
+  assert.equal(report.playback.position, 12);
+  assert.equal(report.playback.duration, 90);
+  assert.equal(report.playback.rate, 1.5);
+  assert.equal(report.artwork.large, 'https://images.example.com/episode.png');
+  activity.cleanup();
+});
+
+test('Disney+ bridge failures still allow dedicated DOM player metadata', async () => {
+  const fixture = disneyPlayer();
+  const activity = await runActivity('disney-plus', {
+    url: 'https://www.disneyplus.com/en-gb/play/episode-one', selectors: fixture.selectors,
+    pageExecute: () => Promise.reject(new Error('Bridge unavailable')),
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.title, 'Chapter 2: The Child');
+  assert.equal(activity.reports.at(-1).playback.duration, 0);
+  activity.cleanup();
+});
+
+test('Disney+ needs a content video and suppresses browsing, ads, and stale SPA metadata', async () => {
+  const fixture = disneyPlayer();
+  const activity = await runActivity('disney-plus', {
+    url: 'https://www.disneyplus.com/home', selectors: fixture.selectors, pageExecute: (fn) => fn(),
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1), null);
+  activity.navigate('https://www.disneyplus.com/play/episode-one');
+  await flushActivity();
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).kind, 'episode');
+  fixture.state.ad = true;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).visibility, 'ad');
+  fixture.state.ad = false;
+  activity.navigate('https://www.disneyplus.com/play/episode-two');
+  await flushActivity();
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1), null);
+  fixture.state.subtitle = 'S1:E3 Chapter 3: The Sin';
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).media.episode, 3);
+  delete fixture.selectors['video[id^="hivePlayer"]'];
+  // The generic video is a dummy, and must not revive a missing native player.
+  fixture.selectors.video = fixture.video;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1), null);
+  activity.navigate('https://www.disneyplus.com/search');
+  await flushActivity();
+  assert.equal(activity.reports.at(-1), null);
+  activity.cleanup();
+});
+
+test('Disney+ drops bridge results after navigation and cleanup', async () => {
+  const fixture = disneyPlayer();
+  const requests = [];
+  const activity = await runActivity('disney-plus', {
+    url: 'https://www.disneyplus.com/play/episode-one', selectors: fixture.selectors,
+    pageExecute: (fn) => {
+      const result = fn();
+      return new Promise((resolve) => requests.push(() => resolve(result)));
+    },
+  });
+  await flushActivity();
+  activity.navigate('https://www.disneyplus.com/play/episode-two');
+  requests.shift()();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1), null);
+  activity.cleanup();
+  const count = activity.reports.length;
+  for (const resolve of requests) resolve();
+  await flushActivity();
+  activity.advance();
+  assert.equal(activity.reports.length, count);
+});
+
+test('Disney+ bounds V1 fields and rejects unsafe artwork and non-service routes', async () => {
+  const fixture = disneyPlayer();
+  fixture.state.title = 'Series'.repeat(100);
+  fixture.state.subtitle = `S99999:E99999 ${'Episode'.repeat(100)}`;
+  fixture.video.playbackRate = Infinity;
+  fixture.timeline.playheadPositionMs = -20;
+  fixture.timeline.programDurationMs = 100000000000;
+  fixture.metadata.images_experience.standard.tile = { '1': { imageId: '../unsafe' } };
+  fixture.video.poster = 'https://user:secret@images.example.com/private.png';
+  const activity = await runActivity('disney-plus', {
+    url: 'https://www.disneyplus.com/play/episode-one', selectors: fixture.selectors,
+    pageExecute: (fn) => fn(),
+  });
+  await flushActivity();
+  const report = activity.reports.at(-1);
+  assert.equal(report.media.series.length, 256);
+  assert.equal(report.media.season, 10000);
+  assert.equal(report.media.episode, 10000);
+  assert.ok(report.media.title.length <= 256);
+  assert.equal(report.artwork.largeText.length, 256);
+  assert.equal(report.artwork.large, undefined);
+  assert.equal(report.playback.position, 0);
+  assert.equal(report.playback.duration, 31536000);
+  assert.equal(report.playback.rate, 1);
+  for (const url of ['https://example.com/play/id', 'http://www.disneyplus.com/play/id',
+    'https://user:secret@www.disneyplus.com/play/id', 'https://www.disneyplus.com/entity/id']) {
+    activity.navigate(url);
+    await flushActivity();
+    assert.equal(activity.reports.at(-1), null);
+  }
+  activity.cleanup();
+});
+
 // Mirrors SoundCloud's October 2026 miniplayer DOM: audio is detached, title
 // text includes a screen-reader duplicate, and the timeline uses seconds.
 function soundcloudPlayer() {

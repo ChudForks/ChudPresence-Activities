@@ -51,14 +51,15 @@ request `userScripts` permission separately from the declared origins.
 
 ## Current catalog
 
-The checked-in catalog contains eight API v1 packages. This snapshot was checked
-on October 2, 2026; `catalog.json` and each package's `metadata.json` are the
+The checked-in catalog contains nine API v1 packages. Disney+ was added locally
+on October 13, 2026; `catalog.json` and each package's `metadata.json` are the
 source for later versions and permission declarations.
 
 | Activity | Version | Reports and behavior |
 | --- | --- | --- |
 | [67Movies](activities/67movies) | 1.0.3 | Movies and episodes, embedded player progress, TMDB metadata and artwork, retained artwork in background tabs |
 | [Crunchyroll](activities/crunchyroll) | 1.0.8 | Anime episodes and movies, display order and artwork settings, SPA navigation and media observation |
+| [Disney+](activities/disney-plus) | 1.0.0 | Movies and episodes, native player metadata and timelines through the V1 page bridge, Hulu-style episode presentation and artwork settings |
 | [Hulu](activities/hulu) | 1.0.9 | Watch-page movies and episodes, early metadata, episode artwork and timelines, detail-page discovery with retry backoff |
 | [Kick](activities/kick) | 1.0.1 | Live channels and recorded videos, playback state, service links and artwork |
 | [SoundCloud](activities/soundcloud) | 1.0.1 | Songs from the persistent miniplayer, artist links, cover artwork, play/pause state, seeking, and background progress; no album line |
@@ -87,6 +88,8 @@ The Kick icon is the PNG linked as the Apple touch icon by `https://kick.com/`
 The Twitch icon is the purple Glitch PNG from Twitch's press center
 (`https://www.twitch.tv/p/press-center/assets/media/glitch.zip`).
 The Hulu icon was taken from Hulu's official App Store listing.
+The Disney+ icon is the Apple touch icon linked from `https://www.disneyplus.com/`
+(`https://static-assets.bamgrid.com/product/disneyplus/favicons/disPlus-favicon-180x180.7d56f648dc95f591721935193bc827cb.png`).
 The SoundCloud icon is the Apple touch icon linked from SoundCloud's web player
 (`https://a-v2.sndcdn.com/assets/images/sc-icons/ios-a62dfc8fe7.png`).
 
@@ -152,7 +155,7 @@ reselect its package files in Developer mode and use **Load local Activity**.
 **Reload Activity** reruns the source already stored by the extension; it does
 not reread files from disk. The CLI does not install or reload the extension.
 
-The eight checked-in official packages are authored directly as `activity.js`,
+The nine checked-in official packages are authored directly as `activity.js`,
 without `src/` or per-package `tests/` directories. Validate one with
 `npm run activity -- validate youtube`; exercise their synthetic-page tests
 with `npm test`. The CLI's `build`, `dev`, and `test` commands require the
