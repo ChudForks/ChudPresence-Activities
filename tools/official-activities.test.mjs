@@ -7,6 +7,10 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+function youtubePlayer(video) {
+  return { querySelector(selector) { return selector.startsWith('video') ? video : null; } };
+}
+
 async function runActivity(id, {
   url, title = '', metadata = null, selectors = {}, selectorLookup = null,
   selectorAllLookup = null, frames = [], storage = {}, netFetch = null, pageFetch = null, pageExecute = null,
@@ -1426,7 +1430,7 @@ test('YouTube package reports a Short through the page bridge and clears adverti
     url: 'https://www.youtube.com/shorts/abcdefghijk',
     title: 'A Short - YouTube',
     selectors: {
-      '#shorts-player video.html5-main-video': video,
+      'ytd-reel-video-renderer[is-active] #shorts-player, ytd-reel-video-renderer[is-active] .html5-video-player, #shorts-player:not(ytd-reel-video-renderer:not([is-active]) #shorts-player)': youtubePlayer(video),
       '#owner #channel-name a': { textContent: 'A Creator', href: 'https://www.youtube.com/@creator' },
     },
     pageExecute: () => page,
@@ -1452,7 +1456,7 @@ test('YouTube package treats a regular video as watching when a reusable live ba
     url: 'https://www.youtube.com/watch?v=abcdefghijk',
     title: 'A recorded video - YouTube',
     selectors: {
-      '#movie_player video.html5-main-video': video,
+      '#movie_player': youtubePlayer(video),
       '#movie_player .ytp-live-badge, #shorts-player .ytp-live-badge': { hidden: false },
       'ytd-watch-flexy': {
         hasAttribute(name) { return name === 'is-live-video'; },
@@ -1476,7 +1480,7 @@ test('YouTube trusts a player seek to zero and paused state over stale DOM playb
     duration: 480, state: 2, live: false, ad: false };
   const activity = await runActivity('youtube', {
     url: 'https://www.youtube.com/watch?v=abcdefghijk',
-    selectors: { '#movie_player video.html5-main-video': video },
+    selectors: { '#movie_player': youtubePlayer(video) },
     pageExecute: () => page,
   });
   await flushActivity();
@@ -1486,7 +1490,7 @@ test('YouTube trusts a player seek to zero and paused state over stale DOM playb
   page.position = 480;
   activity.advance();
   await flushActivity();
-  assert.equal(activity.reports.at(-1).playback.state, 'paused');
+  assert.equal(activity.reports.at(-1), null);
   activity.cleanup();
 });
 
@@ -1495,9 +1499,10 @@ test('YouTube falls back to DOM playback when player timing and state are unavai
   const player = { getVideoData() { return { video_id: 'abcdefghijk', title: 'A recorded video' }; } };
   const activity = await runActivity('youtube', {
     url: 'https://www.youtube.com/watch?v=abcdefghijk',
-    selectors: { '#movie_player video.html5-main-video': video },
-    pageExecute(fn) {
-      return vm.runInNewContext(`(${fn.toString()})()`, {
+    selectors: { '#movie_player': youtubePlayer(video) },
+    pageExecute(fn, args) {
+      return vm.runInNewContext(`(${fn.toString()})(...args)`, {
+        args,
         document: { querySelector() { return player; } },
       });
     },
@@ -1516,7 +1521,7 @@ test('YouTube package reports live playback and ignores a stale player after nav
   const activity = await runActivity('youtube', {
     url: 'https://www.youtube.com/watch?v=abcdefghijk',
     title: 'Live now - YouTube',
-    selectors: { '#movie_player video.html5-main-video': video },
+    selectors: { '#movie_player': youtubePlayer(video) },
     pageExecute: () => page,
   });
   await flushActivity();
@@ -1536,6 +1541,49 @@ test('YouTube package reports live playback and ignores a stale player after nav
   await flushActivity();
   assert.equal(activity.reports.at(-1).kind, 'video');
   assert.equal(activity.reports.at(-1).media.title, 'Next video');
+  activity.cleanup();
+});
+
+test('YouTube ignores browsing previews even with player data and stale media metadata', async () => {
+  const video = { currentTime: 12, duration: 100, paused: false, ended: false, playbackRate: 1 };
+  for (const path of ['/', '/results?search_query=test', '/feed/subscriptions', '/@creator']) {
+    const activity = await runActivity('youtube', {
+      url: `https://www.youtube.com${path}`,
+      metadata: { title: 'Preview video' },
+      selectors: {
+        '#movie_player video.html5-main-video': video,
+        'ytd-player video.html5-main-video': video,
+        'link[rel="canonical"]': { href: 'https://www.youtube.com/watch?v=abcdefghijk' },
+      },
+      pageExecute: () => ({ videoId: 'abcdefghijk', title: 'Preview video', state: 1 }),
+    });
+    await flushActivity();
+    assert.equal(activity.reports.at(-1), null);
+    activity.cleanup();
+  }
+});
+
+test('YouTube clears an ended DOM video without the page bridge and allows replay', async () => {
+  const video = { currentTime: 99, duration: 100, paused: false, ended: false, playbackRate: 1 };
+  const activity = await runActivity('youtube', {
+    url: 'https://www.youtube.com/watch?v=abcdefghijk',
+    title: 'A video - YouTube',
+    selectors: { '#movie_player': youtubePlayer(video) },
+  });
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  video.ended = true;
+  video.paused = true;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1), null);
+  video.ended = false;
+  video.paused = false;
+  video.currentTime = 0;
+  activity.advance();
+  await flushActivity();
+  assert.equal(activity.reports.at(-1).playback.state, 'playing');
+  assert.equal(activity.reports.at(-1).playback.position, 0);
   activity.cleanup();
 });
 

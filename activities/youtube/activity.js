@@ -48,14 +48,31 @@ function httpsUrl(value) {
   }
 }
 
-function mainVideo() {
-  return document.querySelector('#movie_player video.html5-main-video') ||
-    document.querySelector('#shorts-player video.html5-main-video') ||
-    document.querySelector('#movie_player video') ||
-    document.querySelector('#shorts-player video') ||
-    document.querySelector('ytd-miniplayer video.html5-main-video') ||
-    document.querySelector('ytd-player video.html5-main-video') ||
-    ChudPresence.media.find();
+function playerSelector() {
+  if (location.pathname.startsWith('/shorts/')) {
+    return 'ytd-reel-video-renderer[is-active] #shorts-player, ' +
+      'ytd-reel-video-renderer[is-active] .html5-video-player, ' +
+      '#shorts-player:not(ytd-reel-video-renderer:not([is-active]) #shorts-player)';
+  }
+  if (location.pathname === '/watch' || /^\/(?:embed|live)\/[\w-]{11}/.test(location.pathname)) {
+    return '#movie_player';
+  }
+  return 'ytd-miniplayer:not([hidden]) #movie_player, ' +
+    'ytd-miniplayer:not([hidden]) .html5-video-player, #movie_player.ytp-miniplayer-active';
+}
+
+function mainPlayer() {
+  const player = document.querySelector(playerSelector());
+  if (!player || player.closest?.('ytd-video-preview, #inline-preview-player, [hidden]')) return null;
+  const reel = player.closest?.('ytd-reel-video-renderer');
+  if (reel && !reel.hasAttribute('is-active')) return null;
+  const miniplayer = player.closest?.('ytd-miniplayer');
+  if (miniplayer?.getClientRects && !miniplayer.getClientRects().length) return null;
+  return player;
+}
+
+function mainVideo(player = mainPlayer()) {
+  return player?.querySelector('video.html5-main-video') || player?.querySelector('video') || null;
 }
 
 function watchTitle(shorts) {
@@ -110,8 +127,7 @@ function bestArtwork(items, fallback) {
   return best || fallback;
 }
 
-function isAd() {
-  const player = document.querySelector('#movie_player, #shorts-player, .html5-video-player');
+function isAd(player) {
   return Boolean(player?.classList?.contains('ad-showing') ||
     player?.classList?.contains('ad-interrupting') ||
     document.querySelector(
@@ -132,9 +148,9 @@ function pageTitle() {
 }
 
 async function playerSnapshot() {
-  if (!ChudPresence.runtime.has('pageExecute')) return null;
-  return ChudPresence.page.execute(() => {
-    const player = document.querySelector('#movie_player, #shorts-player, .html5-video-player');
+  if (!mainPlayer() || !ChudPresence.runtime.has('pageExecute')) return null;
+  return ChudPresence.page.execute((selector) => {
+    const player = document.querySelector(selector);
     if (!player) return null;
     const result = { videoId: '', title: '', author: '', position: null, duration: null,
       state: null, live: false, ad: false };
@@ -162,16 +178,18 @@ async function playerSnapshot() {
       // The player can be replaced while YouTube navigates.
     }
     return result;
-  });
+  }, [playerSelector()]);
 }
 
 function collect(page) {
-  const video = mainVideo();
+  const player = mainPlayer();
+  if (!player) return null;
+  const video = mainVideo(player);
   const snapshot = video ? ChudPresence.media.snapshot(video) : null;
   const session = navigator.mediaSession;
   const metadata = session?.metadata;
   const shorts = location.pathname.startsWith('/shorts/');
-  if (page?.ad || isAd()) return null;
+  if (page?.ad || isAd(player)) return null;
 
   const routeId = videoIdFromPath();
   const playerId = page?.videoId || '';
@@ -192,8 +210,11 @@ function collect(page) {
   const position = Number.isFinite(page?.position) && page.position >= 0
     ? page.position : Number.isFinite(videoPosition) && videoPosition >= 0 ? videoPosition : 0;
   const playerState = [-1, 0, 1, 2, 3, 5].includes(page?.state) ? page.state : null;
+  if ([0, -1, 5].includes(playerState) || snapshot?.ended || video?.ended) return null;
+  if (!video && playerState === null) return null;
   const playing = playerState !== null ? playerState === 1 || playerState === 3
     : video ? !video.paused && !video.ended : session?.playbackState === 'playing';
+  if (!playing && !live && duration > 0 && position >= duration) return null;
   const fallbackImage = httpsUrl(`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`);
   const image = bestArtwork(metadata?.artwork, fallbackImage);
   const watchUrl = shorts
@@ -276,6 +297,13 @@ function onNavigation() {
   void tick();
 }
 
+function onEnded(event) {
+  if (event.target !== mainVideo()) return;
+  generation += 1;
+  lastProbeAt = 0;
+  send(null);
+}
+
 bindObserver();
 ChudPresence.lifecycle.interval(() => { void tick(); }, 2000);
 ChudPresence.navigation.onChange(onNavigation);
@@ -284,6 +312,7 @@ ChudPresence.dom.observe('#movie_player video, #shorts-player video, ytd-minipla
   () => { void tick(); });
 document.addEventListener('yt-navigate-finish', onNavigation);
 document.addEventListener('yt-page-data-updated', onNavigation);
+document.addEventListener('ended', onEnded, true);
 for (const event of ['play', 'pause', 'loadedmetadata', 'durationchange']) {
   document.addEventListener(event, tick, true);
 }
@@ -291,6 +320,7 @@ ChudPresence.lifecycle.onCleanup(() => {
   observer.disconnect();
   document.removeEventListener('yt-navigate-finish', onNavigation);
   document.removeEventListener('yt-page-data-updated', onNavigation);
+  document.removeEventListener('ended', onEnded, true);
   for (const event of ['play', 'pause', 'loadedmetadata', 'durationchange']) {
     document.removeEventListener(event, tick, true);
   }
