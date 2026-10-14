@@ -9,8 +9,12 @@ Activity API V1 runs trusted code with declared website and network access. The
 extension owns installation, permissions, presence formatting, credentials,
 and Discord publishing. Packages install from this repository through the
 Activity Library or from local files through Developer mode. The same packages
-serve the Chromium lab's isolated `USER_SCRIPT` runtime. A future
-public/community API may use a different security model.
+serve the Chromium lab's isolated `USER_SCRIPT` runtime.
+
+Declarative Activity API V2 packages, including Prime Video, live in the separate
+[ChudPresence-Activities-V2 repository](https://github.com/ChudForks/ChudPresence-Activities-V2).
+Use that repository's JSON authoring tools and V2 contract for V2 development;
+this repository remains dedicated to trusted V1 packages.
 
 ## Repository layout
 
