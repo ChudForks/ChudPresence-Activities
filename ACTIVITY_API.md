@@ -65,6 +65,22 @@ Optional `presence.kind` may be `music`, `video`, `streaming`, or `generic`.
 The runtime accepts that field but does not copy it onto the published track.
 Discord's activity type follows the report kind, described below.
 
+Starting in companion extension **2.0.4**, optional `presence.navigationGraceMs`
+is an integer from 0 to 5000 ms, defaulting to zero. For example,
+`"presence": { "kind": "video", "navigationGraceMs": 4000 }` retains the last
+presence during a confirmed Navigation API transition to a new top-level
+document within `matches` and outside `excludeMatches`. Declare
+`minExtensionVersion: "2.0.4"` for this V1 feature. V2 has supported the same
+metadata option since extension 2.0.1.
+
+The old script stops at document exit; only presence removal is deferred.
+A replacement report cancels the deadline. Repeated exit signals cannot extend
+it, and tab closure, out-of-scope navigation or Activity teardown still clear
+immediately. Missing or aborted navigation hints keep ordinary clears.
+Focus/visibility clears during a pending valid handoff defer to document exit.
+Restoring an opted-in document from the back/forward cache restarts its runtime.
+For SPA route changes, report the replacement directly without clearing first.
+
 An Activity can label the popup's three Status display choices with optional
 `settingsUi.statusLabels` metadata:
 
@@ -157,6 +173,23 @@ the displayed artist or album URL as `stateUrl`, and the album URL as
 and must be HTTPS URLs.
 Set `artwork.largeText` to an empty string to omit the artwork text (the third
 line in Discord's music card). Omitting the field uses album or title text.
+
+Starting in extension **2.0.3**, both API V1 and V2 reports support two opt-in
+display controls. `display.statusDisplayOverride` accepts `name`, `details`, or
+`state` and overrides the saved status-line selection for that report only.
+Omit it on playback reports to resume the user's saved series/episode choice.
+`display.hideState: true` omits the second text line, its link, fallback app or
+creator text, and Live/Paused markers. Omit it or use `false` for existing
+behavior. Neither option changes saved preferences or artwork/button settings.
+Packages using these options should declare `minExtensionVersion: '2.0.3'`.
+
+```js
+ChudPresence.report({
+  kind: 'generic', media: { title: 'Browsing Example' },
+  display: { details: 'Browsing Example', statusDisplayOverride: 'name', hideState: true },
+  artwork: { large: 'https://example.com/logo.png', largeText: 'Example' },
+});
+```
 
 Report URLs must use HTTPS, contain no credentials, and be at most 2048
 characters. Text fields are limited to 256 characters. `season` and `episode`

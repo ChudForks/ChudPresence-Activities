@@ -7,6 +7,15 @@ const metadata = {
   apiVersion: 1, matches: ['https://example.com/*'], entry: 'activity.js',
 };
 
+test('V1 catalogs accept bounded navigation grace and reject invalid values', () => {
+  for (const navigationGraceMs of [0, 4000, 5000]) {
+    assert.doesNotThrow(() => validateMetadata({ ...metadata, presence: { navigationGraceMs } }, metadata.id));
+  }
+  for (const navigationGraceMs of [-1, 5001, 1.2, '4000', null]) {
+    assert.throws(() => validateMetadata({ ...metadata, presence: { navigationGraceMs } }, metadata.id), /navigationGraceMs/);
+  }
+});
+
 test('catalog validation rejects profile and service URLs the extension cannot install', () => {
   for (const url of ['http://example.com/', 'https://user:secret@example.com/', 'https://example.com/' + 'a'.repeat(2048)]) {
     for (const fields of [

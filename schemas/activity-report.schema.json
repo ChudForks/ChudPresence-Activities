@@ -125,6 +125,18 @@
             "details",
             "state"
           ]
+        },
+        "statusDisplayOverride": {
+          "enum": [
+            "name",
+            "details",
+            "state"
+          ],
+          "description": "Per-report status line that takes precedence over the saved display preference. Requires extension 2.0.3."
+        },
+        "hideState": {
+          "type": "boolean",
+          "description": "Omit the second text line, including fallback text and playback markers. Requires extension 2.0.3."
         }
       }
     },

@@ -1,0 +1,37 @@
+{
+  "id": "anikoto",
+  "name": "Anikoto",
+  "description": "Show anime playback on Anikoto, or Browsing Anikoto while actively using the site without a current video.",
+  "version": "1.0.3",
+  "minExtensionVersion": "2.0.4",
+  "apiVersion": 1,
+  "author": { "name": "ChudPresence" },
+  "category": "video",
+  "defaultMediaKind": "episode",
+  "aliases": ["Anikoto TV", "anikototv.to"],
+  "tags": ["anime", "video", "streaming"],
+  "serviceUrl": "https://anikototv.to/",
+  "matches": [
+    "https://anikototv.to/*",
+    "https://www.anikototv.to/*",
+    "https://megaplay.buzz/stream/*",
+    "https://megaplay.buzz/videojs/stream/*"
+  ],
+  "frames": "all",
+  "entry": "activity.js",
+  "icon": "icon.png",
+  "presence": { "kind": "video", "navigationGraceMs": 4000 },
+  "settingsUi": {
+    "statusLabels": { "app": "Anikoto", "artist": "Episode / series", "track": "Series / episode" }
+  },
+  "settings": [
+    {
+      "id": "displayOrder", "type": "select", "label": "Display order", "default": "series",
+      "options": [
+        { "label": "Series then episode", "value": "series" },
+        { "label": "Episode then series", "value": "episode" }
+      ]
+    },
+    { "id": "showArtwork", "type": "boolean", "label": "Show artwork", "default": true }
+  ]
+}

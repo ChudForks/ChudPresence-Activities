@@ -55,13 +55,14 @@ request `userScripts` permission separately from the declared origins.
 
 ## Current catalog
 
-The checked-in catalog contains nine API v1 packages. Disney+ was added locally
-on October 13, 2026; `catalog.json` and each package's `metadata.json` are the
+The checked-in catalog contains ten API v1 packages. Anikoto was added locally
+on October 15, 2026; `catalog.json` and each package's `metadata.json` are the
 source for later versions and permission declarations.
 
 | Activity | Version | Reports and behavior |
 | --- | --- | --- |
 | [67Movies](activities/67movies) | 1.0.3 | Movies and episodes, embedded player progress, TMDB metadata and artwork, retained artwork in background tabs |
+| [Anikoto](activities/anikoto) | 1.0.2 | Anime episodes and movies, posters, MegaPlay playback, and Browsing Anikoto on the focused tab without current media |
 | [Crunchyroll](activities/crunchyroll) | 1.0.8 | Anime episodes and movies, display order and artwork settings, SPA navigation and media observation |
 | [Disney+](activities/disney-plus) | 1.0.0 | Movies and episodes, native player metadata and timelines through the V1 page bridge, Hulu-style episode presentation and artwork settings |
 | [Hulu](activities/hulu) | 1.0.9 | Watch-page movies and episodes, early metadata, episode artwork and timelines, detail-page discovery with retry backoff |
@@ -76,7 +77,9 @@ source for later versions and permission declarations.
 same-origin detail pages directly first, then falls back to
 `ChudPresence.net.fetch()` when the page request fails or lacks the needed
 metadata. Hulu runs only on `/watch/*`. The other packages declare no external
-network bridge permissions. All current packages use the default top-frame
+network bridge permissions. Anikoto uses `frames: "all"` throughout Anikoto
+and MegaPlay's `/stream/*` and `/videojs/stream/*` routes; its player frames relay
+media snapshots and only its Anikoto top frame reports. Other packages use the default top-frame
 scope; 67Movies reads embed routes and validates player messages from its top
 page rather than installing an Activity inside the embedded player.
 
@@ -159,8 +162,9 @@ reselect its package files in Developer mode and use **Load local Activity**.
 **Reload Activity** reruns the source already stored by the extension; it does
 not reread files from disk. The CLI does not install or reload the extension.
 
-The nine checked-in official packages are authored directly as `activity.js`,
-without `src/` or per-package `tests/` directories. Validate one with
+The ten checked-in official packages are authored directly as `activity.js`,
+without `src/` directories. Anikoto also has per-package fixtures in `tests/`.
+Validate one with
 `npm run activity -- validate youtube`; exercise their synthetic-page tests
 with `npm test`. The CLI's `build`, `dev`, and `test` commands require the
 corresponding scaffold source or test directory.

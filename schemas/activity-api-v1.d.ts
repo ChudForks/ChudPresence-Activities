@@ -65,6 +65,7 @@ export type ActivityMetadata = {
   "homepage"?: string;
   "serviceUrl"?: string;
   "presence"?: {
+  "navigationGraceMs"?: number;
   "kind"?: "music" | "video" | "streaming" | "generic";
 };
 };
@@ -97,6 +98,8 @@ export type ActivityReport = {
   "state"?: string;
   "stateUrl"?: string;
   "statusDisplay"?: "name" | "details" | "state";
+  "statusDisplayOverride"?: "name" | "details" | "state";
+  "hideState"?: boolean;
 };
   "artwork"?: {
   "large"?: string;

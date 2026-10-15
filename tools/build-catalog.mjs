@@ -207,9 +207,13 @@ export function validateMetadata(metadata, directoryName, metadataText = JSON.st
   }
   if (metadata.presence !== undefined &&
       (!metadata.presence || typeof metadata.presence !== 'object' || Array.isArray(metadata.presence) ||
-       Object.keys(metadata.presence).some((key) => key !== 'kind') ||
+       Object.keys(metadata.presence).some((key) => key !== 'kind' && key !== 'navigationGraceMs') ||
        (metadata.presence.kind !== undefined && !activityKinds.has(metadata.presence.kind)))) {
     throw new Error(`${directoryName}: presence kind is invalid.`);
+  }
+  if (metadata.presence?.navigationGraceMs !== undefined &&
+      (!Number.isInteger(metadata.presence.navigationGraceMs) || metadata.presence.navigationGraceMs < 0 || metadata.presence.navigationGraceMs > 5000)) {
+    throw new Error(`${directoryName}: presence.navigationGraceMs must be an integer between 0 and 5000.`);
   }
   if (metadata.settingsUi !== undefined) {
     const ui = metadata.settingsUi;

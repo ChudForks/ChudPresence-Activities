@@ -374,6 +374,13 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "navigationGraceMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000,
+          "default": 0,
+          "description": "Bounded presence retention during in-scope document navigation. Tab close and explicit teardown bypass it. V1 requires extension 2.0.4; V2 requires 2.0.1."
+        },
         "kind": {
           "enum": [
             "music",

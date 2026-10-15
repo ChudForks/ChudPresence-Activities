@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-13T22:24:17.011Z",
+  "generatedAt": "2026-10-15T20:54:57.385Z",
   "activities": [
     {
       "id": "67movies",
@@ -57,6 +57,77 @@
       "metadataSha256": "88792f04714f94479e3ef6dff2f88ec35e0e68666344d7ab7dea9e7efb5b36b2",
       "icon": "activities/67movies/icon.png",
       "iconSha256": "ecdea16b3d518e9c25b55641932fbf6b11ae2502e9abf2adf448aa0aeeb8f5fa"
+    },
+    {
+      "id": "anikoto",
+      "name": "Anikoto",
+      "description": "Show anime playback on Anikoto, or Browsing Anikoto while actively using the site without a current video.",
+      "version": "1.0.3",
+      "apiVersion": 1,
+      "minExtensionVersion": "2.0.4",
+      "category": "video",
+      "author": {
+        "name": "ChudPresence"
+      },
+      "aliases": [
+        "Anikoto TV",
+        "anikototv.to"
+      ],
+      "tags": [
+        "anime",
+        "video",
+        "streaming"
+      ],
+      "serviceUrl": "https://anikototv.to/",
+      "presence": {
+        "kind": "video",
+        "navigationGraceMs": 4000
+      },
+      "defaultMediaKind": "episode",
+      "frames": "all",
+      "settings": [
+        {
+          "id": "displayOrder",
+          "type": "select",
+          "label": "Display order",
+          "default": "series",
+          "options": [
+            {
+              "label": "Series then episode",
+              "value": "series"
+            },
+            {
+              "label": "Episode then series",
+              "value": "episode"
+            }
+          ]
+        },
+        {
+          "id": "showArtwork",
+          "type": "boolean",
+          "label": "Show artwork",
+          "default": true
+        }
+      ],
+      "settingsUi": {
+        "statusLabels": {
+          "app": "Anikoto",
+          "artist": "Episode / series",
+          "track": "Series / episode"
+        }
+      },
+      "matches": [
+        "https://anikototv.to/*",
+        "https://www.anikototv.to/*",
+        "https://megaplay.buzz/stream/*",
+        "https://megaplay.buzz/videojs/stream/*"
+      ],
+      "entry": "activities/anikoto/activity.js",
+      "metadata": "activities/anikoto/metadata.json",
+      "sha256": "0d37eae638f67d076e67cf7d5f966218464e7f664a377df8c418ea26cb7cc683",
+      "metadataSha256": "3093cbdedaac2d5856f719f67263c35d1a31dfb2ff4a7abc7fc97276fee36bdc",
+      "icon": "activities/anikoto/icon.png",
+      "iconSha256": "1cec66bfd0e8a2a3a113b8d875875675e26ad396f5f9286a154e88c1b8d323e1"
     },
     {
       "id": "crunchyroll",

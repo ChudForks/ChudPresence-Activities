@@ -17,3 +17,8 @@ export const sampleReport: ActivityReport = {
   media: { title: 'Track', artist: 'Artist' },
   playback: { state: 'playing', position: 12, duration: 180 },
 };
+
+export const browsingReport: ActivityReport = {
+  kind: 'generic', media: { title: 'Browsing example' },
+  display: { details: 'Browsing example', statusDisplayOverride: 'name', hideState: true },
+};
