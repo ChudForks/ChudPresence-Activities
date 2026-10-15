@@ -11,9 +11,9 @@ and Discord publishing. Packages install from this repository through the
 Activity Library or from local files through Developer mode. The same packages
 serve the Chromium lab's isolated `USER_SCRIPT` runtime.
 
-Declarative Activity API V2 packages, including Prime Video, live in the separate
+Programmable, sandboxed Activity API V2 packages, including Prime Video, live in the separate
 [ChudPresence-Activities-V2 repository](https://github.com/ChudForks/ChudPresence-Activities-V2).
-Use that repository's JSON authoring tools and V2 contract for V2 development;
+Use that repository's JavaScript authoring tools and V2 contract for V2 development;
 this repository remains dedicated to trusted V1 packages.
 
 ## Repository layout
@@ -55,22 +55,21 @@ request `userScripts` permission separately from the declared origins.
 
 ## Current catalog
 
-The checked-in catalog contains ten API v1 packages. Anikoto was added locally
-on October 15, 2026; `catalog.json` and each package's `metadata.json` are the
-source for later versions and permission declarations.
+The checked-in catalog contains ten API v1 packages. `catalog.json` and each
+package's `metadata.json` are the source for current versions and permissions.
 
-| Activity | Version | Reports and behavior |
-| --- | --- | --- |
-| [67Movies](activities/67movies) | 1.0.3 | Movies and episodes, embedded player progress, TMDB metadata and artwork, retained artwork in background tabs |
-| [Anikoto](activities/anikoto) | 1.0.2 | Anime episodes and movies, posters, MegaPlay playback, and Browsing Anikoto on the focused tab without current media |
-| [Crunchyroll](activities/crunchyroll) | 1.0.8 | Anime episodes and movies, display order and artwork settings, SPA navigation and media observation |
-| [Disney+](activities/disney-plus) | 1.0.0 | Movies and episodes, native player metadata and timelines through the V1 page bridge, Hulu-style episode presentation and artwork settings |
-| [Hulu](activities/hulu) | 1.0.9 | Watch-page movies and episodes, early metadata, episode artwork and timelines, detail-page discovery with retry backoff |
-| [Kick](activities/kick) | 1.0.1 | Live channels and recorded videos, playback state, service links and artwork |
-| [SoundCloud](activities/soundcloud) | 1.0.1 | Songs from the persistent miniplayer, artist links, cover artwork, play/pause state, seeking, and background progress; no album line |
-| [Twitch](activities/twitch) | 1.0.1 | Live channels and recorded videos, playback state, service links and artwork |
-| [YouTube](activities/youtube) | 1.0.2 | Videos, Shorts and live streams, page-player inspection, advertisement clearing and stale-player protection |
-| [YouTube Music](activities/youtube-music) | 1.0.9 | Songs, artist or album display, clickable song/byline/cover links, pause artwork and a 1.25-second grace for transient player changes |
+| Activity | Reports and behavior |
+| --- | --- |
+| [67Movies](activities/67movies) | Movies and episodes, embedded player progress, TMDB metadata and artwork, retained artwork in background tabs |
+| [Anikoto](activities/anikoto) | Anime episodes and movies, posters, MegaPlay playback, and Browsing Anikoto on the focused tab without current media |
+| [Crunchyroll](activities/crunchyroll) | Anime episodes and movies, display order and artwork settings, SPA navigation and media observation |
+| [Disney+](activities/disney-plus) | Movies and episodes, native player metadata and timelines through the V1 page bridge, Hulu-style episode presentation and artwork settings |
+| [Hulu](activities/hulu) | Watch-page movies and episodes, early metadata, episode artwork and timelines, detail-page discovery with retry backoff |
+| [Kick](activities/kick) | Live channels and recorded videos, playback state, service links and artwork |
+| [SoundCloud](activities/soundcloud) | Songs from the persistent miniplayer, artist links, cover artwork, play/pause state, seeking, and background progress; no album line |
+| [Twitch](activities/twitch) | Live channels and recorded videos, playback state, service links and artwork |
+| [YouTube](activities/youtube) | Videos, Shorts and live streams, page-player inspection, advertisement clearing and stale-player protection |
+| [YouTube Music](activities/youtube-music) | Songs, artist or album display, clickable song/byline/cover links, pause artwork and a 1.25-second grace for transient player changes |
 
 67Movies declares `https://api.themoviedb.org/*` network access. Hulu declares
 `/series/*` and `/movie/*` on `hulu.com` and `www.hulu.com`; it reads those
@@ -130,7 +129,7 @@ Activities repository is published and the catalog is refreshed.
 6. Run `node tools/build-catalog.mjs`, then commit the generated catalog.
 
 The workflow checks metadata, source size, JavaScript syntax, catalog hashes,
-SDK types, package behavior on synthetic pages, and package version bumps.
+SDK types, and package version bumps. Behavioral tests are optional local files.
 The schema and runtime contract are documented in [`ACTIVITY_API.md`](ACTIVITY_API.md).
 
 ## Authoring with the SDK
@@ -175,7 +174,6 @@ Run the existing local checks before submitting changes:
 
 ```sh
 npm ci
-npm test
 npm run typecheck
 npm run check:contract
 npm run check:catalog
@@ -195,13 +193,13 @@ contract and schema files. It can run independently in a standalone checkout.
 `tools/build-catalog.mjs` hashes text with LF line endings to match the bytes
 served from Git even in a Windows checkout.
 
-As of October 2, 2026, the suite passes 25 top-level tests, and SDK typechecking,
-contract generation checks, all seven JavaScript syntax checks, and catalog
-validation pass. The default version-bump check currently fails: the latest
-commit changes Crunchyroll and Hulu metadata categories from `streaming` to
-`video` without raising versions 1.0.8 and 1.0.9. Those package versions must
-increase before that comparison passes. These results cover local synthetic
-tests and validation, not a new live-browser verification of the services.
+Behavior tests, package fixtures under `activities/*/tests/`, and tooling test
+files under `tools/*.test.*`, plus Anikoto's browser smoke helper, are kept
+locally and ignored by Git. Run `npm test`
+when the local suite is available. A fresh checkout does not include these tests
+and CI does not run them. The launcher reports missing tests instead of claiming
+a successful zero-test run. Update website fixtures when their DOM changes;
+formatting, navigation, permission and tooling assertions can still catch regressions.
 
 The SDK conformance test creates and removes a temporary Activity and rebuilds
 the catalog during cleanup. `npm test` can therefore change only the catalog's

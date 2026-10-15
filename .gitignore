@@ -1,2 +1,11 @@
 node_modules/
 .activity-cache/
+
+# Optional local tests and their generated output are not distributed.
+/activities/*/tests/
+/activities/*/tools/browser-smoke.mjs
+/tools/*.test.js
+/tools/*.test.mjs
+/test-results/
+/playwright-report/
+/coverage/

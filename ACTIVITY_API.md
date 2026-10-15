@@ -1,6 +1,6 @@
 # ChudPresence Activity API v1
 
-For declarative public V2 packages and Prime Video, use the separate
+For programmable sandboxed V2 packages and Prime Video, use the separate
 [V2 repository and guide](https://github.com/ChudForks/ChudPresence-Activities-V2/blob/main/ACTIVITY_API_V2.md).
 
 Activity API V1 is a trusted, first-party runtime for official ChudPresence

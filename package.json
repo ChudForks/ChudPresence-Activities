@@ -16,7 +16,7 @@
     "check:contract": "node tools/generate-api-contract.mjs --check",
     "check:catalog": "node tools/build-catalog.mjs --check",
     "typecheck": "tsc --noEmit",
-    "test": "node --test"
+    "test": "node tools/run-tests.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

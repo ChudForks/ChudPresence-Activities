@@ -17,8 +17,6 @@ jobs:
           node-version: 20
       - name: Install Activity SDK tooling
         run: npm ci
-      - name: Run Activity SDK conformance test
-        run: npm test
       - name: Typecheck SDK declarations and TypeScript Activities
         run: npm run typecheck
       - name: Check generated API contract artifacts

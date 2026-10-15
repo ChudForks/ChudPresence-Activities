@@ -53,7 +53,9 @@ comes from the current watch page. Paused playback uses the catalog's shared
 pause badge.
 Browsing also uses that public favicon URL as its Discord large image.
 
-Run the package fixtures from the repository root:
+Package tests and the browser smoke helper are optional local files ignored by
+Git; they are absent from a fresh checkout. With those files present, run the
+package fixtures from the repository root:
 
 ```sh
 node --test activities/anikoto/tests/activity.test.mjs
@@ -83,25 +85,10 @@ containing it. `CHUDPRESENCE_LAB_ROOT` can locate an independently checked-out
 lab; `CHUDPRESENCE_TEST_BROWSER` can select a Chromium browser that supports
 loading unpacked extensions. The default on Windows is Edge.
 
-On October 15, 2026, the original checks passed against the 2.0.2 runtime:
-the background accepted the top-frame episode report, the real child media's
-300-second duration, pause, seek to 125 seconds, speed 1.5, replay from zero,
-and a new episode using the Video.js embed route. With version 1.0.1, removing
-the player or navigating to the home page showed **Browsing Anikoto**;
-switching tabs cleared it and focusing the Anikoto tab restored it.
-No page errors occurred. This verifies the real V1 runtime with
-synthetic site responses; the package was not installed into the user's Brave
-profile and Discord publication was not exercised.
-
-Version **1.0.2** was additionally checked against extension **2.0.3**: the
-formatted browsing payload contains the site's logo URL, uses the application
-name in the compact status even with a saved media-line preference, and omits
-the state line. Playback keeps the saved preference. The same browser fixture
-installs a V2 QuickJS guest to verify that both presentation controls are shared
-API features. Live Discord rendering remains unverified.
-
-Version **1.0.3** was checked against extension **2.0.4** with delayed link and
-form navigation: presence stayed continuous until the replacement report,
-a stalled page cleared after four seconds, and leaving the site or closing a
-tab during handoff cleared promptly. SPA fixtures also verify that browsing
-route changes do not issue an intermediate clear.
+Recorded fixture checks cover native child-frame playback, pause/seek/rate,
+replay and episode changes, focused browsing, shared V1/V2 presentation controls,
+and version 1.0.3 navigation handoff against extension 2.0.4. Delayed link/form
+responses retain presence until replacement or a fixed four-second deadline;
+leaving scope and closing the tab clear promptly. SPA route changes replace
+reports without an intermediate clear. These checks use synthetic site responses;
+installed live playback and Discord publication still need verification.
