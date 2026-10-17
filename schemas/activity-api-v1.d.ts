@@ -112,6 +112,7 @@ export type ActivityReport = {
   "label": string;
   "url": string;
 }>;
+  "focusPolicy"?: "foreground" | "background";
   "visibility"?: "normal" | "idle" | "private" | "ad";
 };
 export type ActivityKind = "video" | "movie" | "episode" | "song" | "stream" | "game" | "generic";

@@ -14,8 +14,11 @@ controls the browsing logo.
 
 Load `metadata.json`, `activity.js`, and `icon.png` together through
 **Activity Library → Developer → Load local Activity**. Approve the declared
-Anikoto and MegaPlay website access. Version **1.0.3** requires Activity Lab
-**2.0.4** for V1 navigation handoff and the shared V1/V2 display controls. Reload/update the extension,
+Anikoto and MegaPlay website access. Version **1.0.4** requires Activity Lab
+**2.0.5** for per-report foreground eligibility. Browsing reports keep valid
+page data while blurred/hidden; the core requires the selected tab in the focused
+browser window, allowing toolbar popups without retaining presence in other apps.
+Playback reports preserve their existing background behavior. Reload/update the extension,
 then reimport the Activity's three files. No network bridge permissions are used.
 The catalog must be published before the package appears in remote Discover.
 

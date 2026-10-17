@@ -184,6 +184,13 @@
         }
       }
     },
+    "focusPolicy": {
+      "enum": [
+        "foreground",
+        "background"
+      ],
+      "description": "Foreground reports publish only in the selected tab of the focused browser window, including while browser UI has page focus. Omission or background preserves existing behavior. Requires extension 2.0.5."
+    },
     "visibility": {
       "enum": [
         "normal",

@@ -204,9 +204,10 @@
 
   function browsing() {
     const url = https(location.href);
-    if (!url || !serviceHost(url.hostname) || document.visibilityState !== 'visible' || !document.hasFocus()) return null;
+    if (!url || !serviceHost(url.hostname)) return null;
     return {
       kind: 'generic',
+      focusPolicy: 'foreground',
       media: { title: 'Browsing Anikoto' },
       display: { details: 'Browsing Anikoto', state: '', statusDisplayOverride: 'name', hideState: true },
       playback: { state: 'playing', position: 0, duration: 0, rate: 1, live: false },

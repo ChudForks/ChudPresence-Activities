@@ -16,5 +16,6 @@ export const REPORT_PLAYBACK_FIELDS = Object.freeze(["state","position","duratio
 export const REPORT_DISPLAY_FIELDS = Object.freeze(["details","detailsUrl","state","stateUrl","statusDisplay","statusDisplayOverride","hideState"]);
 export const REPORT_ARTWORK_FIELDS = Object.freeze(["large","largeUrl","largeText","small","smallText"]);
 export const REPORT_VISIBILITY_VALUES = Object.freeze(["normal","idle","private","ad"]);
+export const REPORT_FOCUS_POLICY_VALUES = Object.freeze(["foreground","background"]);
 export const REPORT_PLAYBACK_STATE_VALUES = Object.freeze(["playing","paused","stopped"]);
 export const REPORT_STATUS_DISPLAY_VALUES = Object.freeze(["name","details","state"]);

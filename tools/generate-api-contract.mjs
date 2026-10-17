@@ -42,6 +42,7 @@ const runtimeModule = [
   arrayExport('REPORT_DISPLAY_FIELDS', Object.keys(display?.properties || {})),
   arrayExport('REPORT_ARTWORK_FIELDS', Object.keys(artwork?.properties || {})),
   arrayExport('REPORT_VISIBILITY_VALUES', enumAt(report.properties.visibility)),
+  arrayExport('REPORT_FOCUS_POLICY_VALUES', enumAt(report.properties.focusPolicy)),
   arrayExport('REPORT_PLAYBACK_STATE_VALUES', enumAt(playback?.properties?.state)),
   arrayExport('REPORT_STATUS_DISPLAY_VALUES', enumAt(display?.properties?.statusDisplay)),
   '',

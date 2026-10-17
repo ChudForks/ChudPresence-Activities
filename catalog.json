@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-15T20:54:57.385Z",
+  "generatedAt": "2026-10-17T23:08:02.505Z",
   "activities": [
     {
       "id": "67movies",
@@ -62,9 +62,9 @@
       "id": "anikoto",
       "name": "Anikoto",
       "description": "Show anime playback on Anikoto, or Browsing Anikoto while actively using the site without a current video.",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "apiVersion": 1,
-      "minExtensionVersion": "2.0.4",
+      "minExtensionVersion": "2.0.5",
       "category": "video",
       "author": {
         "name": "ChudPresence"
@@ -124,8 +124,8 @@
       ],
       "entry": "activities/anikoto/activity.js",
       "metadata": "activities/anikoto/metadata.json",
-      "sha256": "0d37eae638f67d076e67cf7d5f966218464e7f664a377df8c418ea26cb7cc683",
-      "metadataSha256": "3093cbdedaac2d5856f719f67263c35d1a31dfb2ff4a7abc7fc97276fee36bdc",
+      "sha256": "4800a0554676df56852ee77d9de79355da5b145f25c70a65834fda99748aac0b",
+      "metadataSha256": "2430b29f19d95076e99e901ec5e4001e46c4d38b6ca662a0810e29962993fca9",
       "icon": "activities/anikoto/icon.png",
       "iconSha256": "1cec66bfd0e8a2a3a113b8d875875675e26ad396f5f9286a154e88c1b8d323e1"
     },

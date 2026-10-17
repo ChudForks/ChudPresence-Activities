@@ -28,6 +28,18 @@ model or a V2 contract.
 
 ## Package
 
+Extension **2.0.5+** accepts optional per-report
+`focusPolicy: 'foreground' | 'background'` in both V1 and V2. Use `'foreground'`
+for browsing: core selection requires the selected tab in the focused browser
+window, while allowing the page to blur for toolbar popups or the address bar.
+Do not clear on document blur/hidden alone; continue reporting valid page data.
+Focus loss suppresses publication immediately and return restores a still-valid
+report. Explicit clears, navigation out of scope, tab/document exit and stale
+report expiration still remove it. Omission or `'background'` preserves existing
+behavior, including playback. Set the policy per report for mixed Activities
+and declare `minExtensionVersion: '2.0.5'`. No additional tab-reading permission
+is needed. Third-party popup focus behavior needs verification per browser.
+
 ```text
 activities/<activity-id>/
 ├── metadata.json
