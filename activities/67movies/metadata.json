@@ -2,12 +2,12 @@
   "id": "67movies",
   "name": "67Movies",
   "description": "Show the movie or TV episode playing on 67Movies.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "apiVersion": 1,
   "author": {
     "name": "ChudPresence"
   },
-  "category": "streaming",
+  "category": "video",
   "defaultMediaKind": "episode",
   "aliases": ["67Movies", "Movies67"],
   "tags": ["movies", "tv", "streaming"],
