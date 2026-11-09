@@ -212,8 +212,8 @@ function collect(page) {
   const playerState = [-1, 0, 1, 2, 3, 5].includes(page?.state) ? page.state : null;
   if ([0, -1, 5].includes(playerState) || snapshot?.ended || video?.ended) return null;
   if (!video && playerState === null) return null;
-  const playing = playerState !== null ? playerState === 1 || playerState === 3
-    : video ? !video.paused && !video.ended : session?.playbackState === 'playing';
+  const playing = playerState !== null ? playerState === 1
+    : !video.paused && video.readyState >= video.HAVE_FUTURE_DATA;
   if (!playing && !live && duration > 0 && position >= duration) return null;
   const fallbackImage = httpsUrl(`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`);
   const image = bestArtwork(metadata?.artwork, fallbackImage);
@@ -313,7 +313,8 @@ ChudPresence.dom.observe('#movie_player video, #shorts-player video, ytd-minipla
 document.addEventListener('yt-navigate-finish', onNavigation);
 document.addEventListener('yt-page-data-updated', onNavigation);
 document.addEventListener('ended', onEnded, true);
-for (const event of ['play', 'pause', 'loadedmetadata', 'durationchange']) {
+const playbackEvents = ['play', 'playing', 'pause', 'waiting', 'loadedmetadata', 'durationchange'];
+for (const event of playbackEvents) {
   document.addEventListener(event, tick, true);
 }
 ChudPresence.lifecycle.onCleanup(() => {
@@ -321,7 +322,7 @@ ChudPresence.lifecycle.onCleanup(() => {
   document.removeEventListener('yt-navigate-finish', onNavigation);
   document.removeEventListener('yt-page-data-updated', onNavigation);
   document.removeEventListener('ended', onEnded, true);
-  for (const event of ['play', 'pause', 'loadedmetadata', 'durationchange']) {
+  for (const event of playbackEvents) {
     document.removeEventListener(event, tick, true);
   }
   void ChudPresence.clear().catch(() => {});

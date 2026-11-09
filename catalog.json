@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-18T15:26:40.293Z",
+  "generatedAt": "2026-11-09T16:57:51.994Z",
   "activities": [
     {
       "id": "67movies",
@@ -133,7 +133,7 @@
       "id": "crunchyroll",
       "name": "Crunchyroll",
       "description": "Show the anime episode or movie playing on Crunchyroll.",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "apiVersion": 1,
       "category": "video",
       "author": {
@@ -180,8 +180,8 @@
       "settingsUi": {
         "statusLabels": {
           "app": "Crunchyroll",
-          "artist": "Episode / series",
-          "track": "Series / episode"
+          "artist": "Series",
+          "track": "Episode"
         }
       },
       "matches": [
@@ -192,7 +192,7 @@
       "entry": "activities/crunchyroll/activity.js",
       "metadata": "activities/crunchyroll/metadata.json",
       "sha256": "ced9764328e44d67cfc2c3fe3abcf739decabc5f5a880be51a8aa150def41af2",
-      "metadataSha256": "5814cc4de7487d33058bc2f1a7c8725cfe824eab59d4160daf0a2c4fcc38f029",
+      "metadataSha256": "39ba5f1ab3a8b4d84c74b28179b1175d13a5d1b607e2d0c738d273f9eb16f193",
       "icon": "activities/crunchyroll/icon.png",
       "iconSha256": "c82119ef8bdc7d60867e69d38291efb58737a5a4248154e6d14fb6ab4a19761f"
     },
@@ -437,7 +437,7 @@
       "id": "youtube",
       "name": "YouTube",
       "description": "Show YouTube videos, Shorts, and live streams as an Activity.",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "apiVersion": 1,
       "category": "video",
       "author": {
@@ -471,8 +471,8 @@
       ],
       "entry": "activities/youtube/activity.js",
       "metadata": "activities/youtube/metadata.json",
-      "sha256": "39d15347f039a09aea1982b201df6947e97cc7818df1e37426de02dc318d9985",
-      "metadataSha256": "bf696fd5ea247af0691624fccdcf7a1d916cb3fc8ab075f3c6f0c7d0e7adf537",
+      "sha256": "34d432864f80b0c7193804c21d6cc8028137a73e87f6a4fd2f87563dd5ba6b72",
+      "metadataSha256": "ed1d83dc0adeaee0ad2eb707634a12366860824e063da3bd9b144b5a9a36f3dd",
       "icon": "activities/youtube/icon.png",
       "iconSha256": "fc098ac5d0282c91cb26cf25d63dcd598c515d41986a4afa13f6a6d1d7d73268"
     },
