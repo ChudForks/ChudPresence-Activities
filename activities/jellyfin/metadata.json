@@ -1,0 +1,32 @@
+{
+  "id": "jellyfin",
+  "name": "Jellyfin",
+  "description": "Share movies, episodes, music, and live TV from the Jellyfin Web servers you add.",
+  "version": "1.2.0",
+  "apiVersion": 1,
+  "minExtensionVersion": "2.1.3",
+  "author": { "name": "ChudPresence" },
+  "category": "video",
+  "defaultMediaKind": "video",
+  "aliases": ["Jellyfin Web"],
+  "tags": ["video", "movie", "tv", "music", "self-hosted"],
+  "serviceUrl": "https://jellyfin.org/",
+  "siteAccess": "user-configured",
+  "matches": ["https://jellyfin.org/*"],
+  "entry": "activity.js",
+  "icon": "icon.png",
+  "settingsUi": { "statusLabels": { "app": "Jellyfin", "artist": "Artist / series", "track": "Media title" } },
+  "settings": [
+    { "id": "showBrowsing", "type": "boolean", "label": "Show browsing status", "default": true },
+    { "id": "privacyMode", "type": "boolean", "label": "Hide media details", "default": false },
+    { "id": "showMovies", "type": "boolean", "label": "Show movies", "default": true },
+    { "id": "showSeries", "type": "boolean", "label": "Show TV episodes", "default": true },
+    { "id": "showMusic", "type": "boolean", "label": "Show music", "default": true },
+    { "id": "showLiveTv", "type": "boolean", "label": "Show live TV", "default": true },
+    { "id": "showOverview", "type": "boolean", "label": "Show plot summary", "default": false },
+    { "id": "jellyfinLogoOnly", "type": "boolean", "label": "Always show the Jellyfin logo", "default": false },
+    { "id": "shareServerArtwork", "type": "boolean", "label": "Use posters from public HTTPS servers (domain or public IP)", "default": true },
+    { "id": "uploadServerArtwork", "type": "boolean", "label": "Upload artwork from your server to Litterbox (public 24-hour link)", "default": false }
+  ],
+  "network": ["https://musicbrainz.org/ws/2/release/*", "https://api.themoviedb.org/3/*"]
+}

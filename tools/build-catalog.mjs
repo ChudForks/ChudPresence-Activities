@@ -147,6 +147,10 @@ export function validateMetadata(metadata, directoryName, metadataText = JSON.st
     );
     if (!minimum || !validMinimum) throw new Error(`${directoryName}: minExtensionVersion must be a semantic version.`);
   }
+  const configuredSites = metadata.apiVersion === 1 && metadata.siteAccess === 'user-configured';
+  if (metadata.siteAccess !== undefined && (!configuredSites || (metadata.frames !== undefined && metadata.frames !== 'top'))) {
+    throw new Error(`${directoryName}: user-configured sites require V1 and top frames.`);
+  }
   if (metadata.entry !== 'activity.js' || !Array.isArray(metadata.matches) ||
       metadata.matches.length < 1 || metadata.matches.length > 32 ||
       new Set(metadata.matches).size !== metadata.matches.length || !metadata.matches.every(validMatchPattern)) {
@@ -261,7 +265,7 @@ async function readPackage(directoryName) {
     ...(metadata.minExtensionVersion ? { minExtensionVersion: metadata.minExtensionVersion } : {}),
     ...(metadata.category ? { category: metadata.category } : {}),
     ...(metadata.author ? { author: metadata.author } : {}),
-    ...Object.fromEntries(['aliases', 'tags', 'excludeMatches', 'contributors', 'serviceUrl', 'homepage', 'repository', 'presence', 'defaultMediaKind', 'frames', 'network', 'settings', 'settingsUi']
+    ...Object.fromEntries(['aliases', 'tags', 'excludeMatches', 'contributors', 'serviceUrl', 'homepage', 'repository', 'presence', 'defaultMediaKind', 'frames', 'network', 'settings', 'settingsUi', 'siteAccess']
       .filter((field) => metadata[field] !== undefined)
       .map((field) => [field, metadata[field]])),
     matches: metadata.matches,

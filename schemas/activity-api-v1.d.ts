@@ -68,6 +68,7 @@ export type ActivityMetadata = {
   "navigationGraceMs"?: number;
   "kind"?: "music" | "video" | "streaming" | "generic";
 };
+  "siteAccess"?: "user-configured";
 };
 export type ActivityReport = {
   "kind": "video" | "movie" | "episode" | "song" | "stream" | "game" | "generic";

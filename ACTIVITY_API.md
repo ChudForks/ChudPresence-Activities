@@ -1,5 +1,41 @@
 # ChudPresence Activity API v1
 
+## User-configured servers (extension 2.1.3)
+
+An official self-hosted V1 Activity can declare `siteAccess: "user-configured"`
+with `frames: "top"` (or omitted) and
+`minExtensionVersion: "2.1.3"`. Installing it registers no page scripts until
+the user adds a server in the extension UI. Server locations are installation
+data separate from integrity-checked package metadata. They survive package
+updates, are not synced through Link, and can be removed individually.
+
+Keep ordinary HTTPS `matches` for the service's public website in package
+metadata so older extensions can still validate the catalog and show the
+minimum-version requirement. In this mode those package matches are replaced
+at runtime by the approved server list; they request no website permission
+and start no scripts themselves.
+
+The extension requests website access from the user's add-server click.
+Scripts, sender validation, navigation, and same-server network requests are
+also constrained to each saved protocol, port, and base path. HTTP is allowed
+only for those approved server locations; ordinary package match/network
+patterns and report artwork/buttons retain their HTTPS requirements. The
+network broker grants a configured server only to a page in that same server
+scope, so approval of two servers does not allow one page to request the other.
+V2 does not support this metadata option.
+
+`ChudPresence.runtime.siteUrl` is the approved base URL for this document, or
+an empty string for ordinary Activities. Build server API paths relative to
+it. Keep session credentials in memory, send them only in authorization
+headers to the matching server, and never put them in reports or artwork.
+
+Disabling/removing the Activity unregisters its scripts and ends its running
+lifecycle. Changing the server list also replaces the runtime capability and
+stops old documents before applying the new scope. Removing the final server
+leaves the Activity installed without page detection.
+
+## V1 runtime
+
 For programmable sandboxed V2 packages and Prime Video, use the separate
 [V2 repository and guide](https://github.com/ChudForks/ChudPresence-Activities-V2/blob/main/ACTIVITY_API_V2.md).
 
